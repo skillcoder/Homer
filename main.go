@@ -6,6 +6,7 @@ import (
 //	"log"
 	"os"
 //	"time"
+    "encoding/json"
 	"github.com/sirupsen/logrus"
 	"github.com/takama/router"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -15,10 +16,75 @@ import (
 
 var log = logrus.New()
 
+type mqttConnectedPacket struct {
+    Act    string  `json:"act"`
+    Time   uint32  `json:"time"`
+    Name   string  `json:"name"`
+	Ap     string  `json:"ap"`
+	Mac    string  `json:"mac"`
+	Ip     string  `json:"ip"`
+	Rssi   int16   `json:"rssi"`
+	Vcc    float32 `json:"vcc"`
+	H      string  `json:"h"`
+	V      string  `json:"v"`
+	UPD    uint32  `json:"upd"`
+	Inited uint32  `json:"inited"`
+	Free   uint32  `json:"free"`
+}
+
+type mqttStatusPacket struct{
+    Act    string  `json:"act"`
+    Time   uint32  `json:"time"`
+    Ap     string  `json:"ap"`
+    Rssi   int16   `json:"rssi"`
+    Vcc    float32 `json:"vcc"`
+    Free   uint32  `json:"free"`
+	Uptime uint32  `json:"uptime"`
+}
+
 //define a function for the default message handler
 var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
   fmt.Printf("TOPIC: %s\n", msg.Topic())
-  fmt.Printf("MSG: %s\n", msg.Payload())
+
+/*
+/esp/water-c/stat
+	{"act": "status", "time": 1534708109, "ap": "olans", "rssi": -67, "free": 38784, "vcc": 3.17, "uptime": 462600773}
+/esp/init
+	{"act":"connected", "ap": "olans", "name": "water-c", "mac": "FF:FF:FF:99:99:99", "ip": "192.168.1.29", "rssi": -71, "vcc": 3.08, "h": 0.9, "v": 0.9, "upd": 1534245504, "time": 1534245512, "inited": 4525, "free": 39616}
+*/
+  payload := []byte(msg.Payload())
+
+  if !json.Valid(payload) {
+  	fmt.Printf("MSG: %s\n", payload)
+	return
+  }
+
+  var dat map[string]interface{}
+  if err := json.Unmarshal(payload, &dat); err != nil {
+    panic(err)
+  }
+  fmt.Println(dat)
+
+  opcode := dat["act"].(string)
+  switch opcode {
+  case "connected":
+      packet := mqttConnectedPacket{}
+      json.Unmarshal(payload, &packet)
+	  fmt.Printf("[%s]\n", packet.Name)
+	  channel := "/esp/"+packet.Name+"/+"
+
+	  if token := client.Subscribe(channel, 0, nil); token.Wait() && token.Error() != nil {
+		  log.Error(token.Error())
+	  } else {
+		  fmt.Printf("Subscribed: %s\n", channel);
+	  }
+  case "status":
+  	  packet := mqttStatusPacket{}
+      json.Unmarshal(payload, &packet)
+      fmt.Printf("Status[%d]: %s R:%d free:%d vcc:%.2f uptime:%d\n", packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
+  case "debug":
+	  fmt.Println(opcode)
+  }
 }
 
 // Run server: go build; env SERVICE_PORT=8000 step-by-step
