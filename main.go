@@ -6,6 +6,7 @@ import (
 //	"log"
 	"os"
 //	"time"
+    "strings"
     "encoding/json"
 	"github.com/sirupsen/logrus"
 	"github.com/takama/router"
@@ -23,13 +24,19 @@ type mqttConnectedPacket struct {
 	Ap     string  `json:"ap"`
 	Mac    string  `json:"mac"`
 	Ip     string  `json:"ip"`
-	Rssi   int16   `json:"rssi"`
-	Vcc    float32 `json:"vcc"`
 	H      string  `json:"h"`
 	V      string  `json:"v"`
 	UPD    uint32  `json:"upd"`
 	Inited uint32  `json:"inited"`
+
+	Rssi   int16   `json:"rssi"`
+	Vcc    float32 `json:"vcc"`
 	Free   uint32  `json:"free"`
+}
+
+type mqttChannelsPacket struct {
+	Act   string  `json:"act"`
+	Chs   []string `json:"chs"`
 }
 
 type mqttStatusPacket struct{
@@ -44,47 +51,90 @@ type mqttStatusPacket struct{
 
 //define a function for the default message handler
 var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
-  fmt.Printf("TOPIC: %s\n", msg.Topic())
+	s := strings.Split(msg.Topic(), "/")
+	var espName string
+	var espTheme string
+	var espTag string
+	if (s[1] == "esp") {
+		espName = s[2]
+		if (len(s) > 3) {
+			espTheme = s[3]
+		}
+		if (len(s) > 4) {
+			espTag = s[4]
+		}
+	} else {
+		return;
+	}
 
+	fmt.Printf("TOPIC: %s\n", msg.Topic())
 /*
 /esp/water-c/stat
 	{"act": "status", "time": 1534708109, "ap": "olans", "rssi": -67, "free": 38784, "vcc": 3.17, "uptime": 462600773}
 /esp/init
 	{"act":"connected", "ap": "olans", "name": "water-c", "mac": "FF:FF:FF:99:99:99", "ip": "192.168.1.29", "rssi": -71, "vcc": 3.08, "h": 0.9, "v": 0.9, "upd": 1534245504, "time": 1534245512, "inited": 4525, "free": 39616}
+	{"act":"connected", "ap": "olans", "name": "bedroom", "mac": "FF:FF:FF:99:99:98", "ip": "192.168.1.30", "rssi": -69, "vcc": 3.07, "v": 0.7, "upd": 1524429310, "time": 1534782471, "inited": 64, "free": 41104}
 */
-  payload := []byte(msg.Payload())
+	if (espName == "init" || espTheme == "stat") {
+		payload := []byte(msg.Payload())
 
-  if !json.Valid(payload) {
-  	fmt.Printf("MSG: %s\n", payload)
-	return
-  }
+		if !json.Valid(payload) {
+			fmt.Printf("MSG: %s\n", payload)
+			return
+		}
 
-  var dat map[string]interface{}
-  if err := json.Unmarshal(payload, &dat); err != nil {
-    panic(err)
-  }
-  fmt.Println(dat)
+		var dat map[string]interface{}
+		if err := json.Unmarshal(payload, &dat); err != nil {
+			panic(err)
+		}
+		fmt.Println(dat)
 
-  opcode := dat["act"].(string)
-  switch opcode {
-  case "connected":
-      packet := mqttConnectedPacket{}
-      json.Unmarshal(payload, &packet)
-	  fmt.Printf("[%s]\n", packet.Name)
-	  channel := "/esp/"+packet.Name+"/+"
+		opcode := dat["act"].(string)
+		switch opcode {
+		case "connected":
+			packet := mqttConnectedPacket{}
+			json.Unmarshal(payload, &packet)
+			fmt.Printf("[%s]\n", packet.Name)
+			channel := "/esp/"+packet.Name+"/+"
 
-	  if token := client.Subscribe(channel, 0, nil); token.Wait() && token.Error() != nil {
-		  log.Error(token.Error())
-	  } else {
-		  fmt.Printf("Subscribed: %s\n", channel);
-	  }
-  case "status":
-  	  packet := mqttStatusPacket{}
-      json.Unmarshal(payload, &packet)
-      fmt.Printf("Status[%d]: %s R:%d free:%d vcc:%.2f uptime:%d\n", packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
-  case "debug":
-	  fmt.Println(opcode)
-  }
+			if token := client.Subscribe(channel, 0, nil); token.Wait() && token.Error() != nil {
+				log.Error(token.Error())
+			} else {
+				fmt.Printf("Subscribed: %s\n", channel);
+			}
+		case "status":
+			packet := mqttStatusPacket{}
+			json.Unmarshal(payload, &packet)
+			fmt.Printf("(%s) status [%d]: %s R:%d free:%d vcc:%.2f uptime:%d\n", espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
+			/*
+		case "channels":
+			packet := mqttChannelsPacket{}
+			json.Unmarshal(payload, &packet)
+			*/
+		}
+	} else {
+		var espRoom string = espName;
+		if (len(espTag) > 0) {
+			espRoom = espTag
+		}
+
+		fmt.Printf("%s %s %s\n", espRoom, espTheme, msg.Payload())
+
+		switch espTheme {
+		// Counter (unix_timestamp of click)
+		case "count":
+		// Movement detector (unix_timestamp/0) 0 = end detection
+		case "move":
+		// Switch 
+		case "led":
+		// Temperature
+		case "temp":
+		// Humidity
+		case "humd":
+		// Pressure
+		case "pres":
+		}
+	}
 }
 
 // Run server: go build; env SERVICE_PORT=8000 step-by-step
