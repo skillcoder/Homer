@@ -10,6 +10,7 @@ import (
     "encoding/json"
 	"github.com/sirupsen/logrus"
 	"github.com/takama/router"
+	"github.com/hashicorp/mdns"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 //	"github.com/skillcoder/homer/version"
 	"github.com/skillcoder/homer/shutdown"
@@ -48,6 +49,8 @@ type mqttStatusPacket struct{
     Free   uint32  `json:"free"`
 	Uptime uint32  `json:"uptime"`
 }
+
+var espKnownNodes map[string]bool = make(map[string]bool)
 
 //define a function for the default message handler
 var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
@@ -95,12 +98,10 @@ var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.M
 			packet := mqttConnectedPacket{}
 			json.Unmarshal(payload, &packet)
 			fmt.Printf("[%s]\n", packet.Name)
-			channel := "/esp/"+packet.Name+"/+"
-
-			if token := client.Subscribe(channel, 0, nil); token.Wait() && token.Error() != nil {
-				log.Error(token.Error())
-			} else {
-				fmt.Printf("Subscribed: %s\n", channel);
+			n, ok := espKnownNodes[packet.Name]
+			fmt.Printf("[%v] [%v]\n", n, ok)
+			if (!n || !ok) {
+				nodeSubscribe(client, packet.Name)
 			}
 		case "status":
 			packet := mqttStatusPacket{}
@@ -135,6 +136,21 @@ var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.M
 		case "pres":
 		}
 	}
+}
+
+func nodeSubscribe(client MQTT.Client, Name string) (status bool, Err error){
+	//espKnownNodes.Add(Name)
+	espKnownNodes[Name] = true
+	channel := "/esp/"+Name+"/+"
+
+	if token := client.Subscribe(channel, 0, nil); token.Wait() && token.Error() != nil {
+		log.Error(token.Error())
+		return false, token.Error()
+	} else {
+		fmt.Printf("Subscribed: %s\n", channel);
+	}
+
+	return true, nil
 }
 
 // Run server: go build; env SERVICE_PORT=8000 step-by-step
@@ -189,6 +205,21 @@ func main() {
   }
   */
   //mqttClient.Disconnect(250)
+
+  // Make a channel for results and start listening
+  entriesCh := make(chan *mdns.ServiceEntry, 4)
+  go func() {
+	  for entry := range entriesCh {
+	  	  fmt.Printf("Got new entry: %v\n", entry)
+		  log.Info(fmt.Sprintf("New node detected: (%s) [%s]", entry.Host, entry.AddrV4))
+		  s := strings.SplitN(entry.Host, ".", 2)
+		  nodeSubscribe(mqttClient, s[0])
+	  }
+  }()
+
+  // Start the lookup
+  mdns.Lookup("_homer._tcp", entriesCh)
+  close(entriesCh)
 
   r := router.New()
   r.Logger = logger
