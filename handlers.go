@@ -9,7 +9,7 @@ import (
 
 // home returns the path of current request
 func home(c *router.Control) {
-	fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s", version.REPO, version.COMMIT, version.RELEASE)
+	fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s, Build: %s", version.REPO, version.COMMIT, version.RELEASE, version.BUILD)
 }
 
 // logger provides a log of requests
