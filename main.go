@@ -3,13 +3,13 @@ package main
 
 import (
   "net/http"
-//  "fmt"
+  "fmt"
 //  "log"
   "os"
   "strings"
 //  "time"
 //  "sync"
-//  _ "net/http/pprof"
+  _ "net/http/pprof"
   "github.com/sirupsen/logrus"
   "github.com/takama/router"
   "github.com/hashicorp/mdns"
@@ -43,14 +43,17 @@ func init() {
   // Output to stdout instead of the default stderr
   // Can be any io.Writer, see below for File example
   //log.SetOutput(os.Stdout)
-
+/*
   log.WithFields(logrus.Fields{
     "mode": SERVICE_MODE,
   }).Warn("Inited")
+  */
 }
 
 func main() {
   //log.Out = os.Stdout
+  fmt.Printf("Homer v%s [%s] (%s)\n", version.RELEASE, version.BUILD, SERVICE_MODE)
+  fmt.Printf("WWW: %s (%s)\n\n", version.REPO, version.COMMIT)
 
   http_listen := os.Getenv("HOMER_SERVICE_LISTEN")
   if len(http_listen) == 0 {

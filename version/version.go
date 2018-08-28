@@ -1,7 +1,7 @@
 package version
 
 // Rewrite by
-// go build -ldflags "-X github.com/skillcoder/homer/version.BUILD=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X github.com/skillcoder/homer/version.COMMIT=`git rev-parse HEAD` -X github.com/skillcoder/homer/version.RELEASE='0.0.0'"
+// go build -ldflags "-X github.com/skillcoder/homer/version.BUILD=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X github.com/skillcoder/homer/version.COMMIT=`git rev-parse HEAD` -X github.com/skillcoder/homer/version.RELEASE=`cat VERSION`"
 // see how to use: https://github.com/golang/go/wiki/GcToolchainTricks
 var (
 	// REPO returns the git repository URL
