@@ -12,7 +12,7 @@ import (
   _ "net/http/pprof"
   "github.com/sirupsen/logrus"
   "github.com/takama/router"
-  "github.com/hashicorp/mdns"
+  "github.com/micro/mdns"
   MQTT "github.com/eclipse/paho.mqtt.golang"
   "github.com/skillcoder/homer/version"
   "github.com/skillcoder/homer/shutdown"
@@ -112,7 +112,7 @@ func main() {
   //mqttClient.Disconnect(250)
 
   // Make a channel for results and start listening
-  entriesCh := make(chan *mdns.ServiceEntry, 4)
+  entriesCh := make(chan *mdns.ServiceEntry, 8)
   go func() {
     for entry := range entriesCh {
         //fmt.Printf("Got new entry: %v\n", entry)
@@ -125,7 +125,11 @@ func main() {
   }()
 
   // Start the lookup
-  mdns.Lookup("_homer._tcp", entriesCh)
+  err := mdns.Lookup("_homer._tcp", entriesCh)
+  if err != nil {
+    log.Error(err)
+  }
+
   close(entriesCh)
 
   r := router.New()

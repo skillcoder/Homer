@@ -112,7 +112,7 @@ var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.M
         case "count", "move", "led", "temp", "humd", "pres":
           // int8
           if espTheme == "count" || espTheme == "move" || espTheme == "led" {
-            value, err := strconv.ParseUint(payload_str, 10, 8)
+            value, err := strconv.ParseUint(payload_str, 10, 64)
             if err != nil {
               // handle error
               log.Errorf("[%d] %s %s %s convert to int: %s", timestamp, espRoom, espTheme, payload_str, err)
@@ -154,6 +154,8 @@ var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.M
         case "pres":
         }
 */
+        case "debug":
+          //log.Debugf("Debug")
         default:
           log.Warnf("Unknown topic Theme (%s) [%u] %s %s %s %u, we ignore it (but devs must fix this by adding mqtt handler for it)", espTheme, timestamp, espRoom, espTheme, payload_str)
       }

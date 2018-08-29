@@ -1,9 +1,10 @@
 package: github.com/skillcoder/homer
 import:
 - package: github.com/sirupsen/logrus
-  version: master
+  version: ^1.0.6
 - package: github.com/eclipse/paho.mqtt.golang
   version: ^1.1.1
 - package: github.com/kshvakov/clickhouse
   version: ^1.3.4
 - package: github.com/skillcoder/go-common-handlers
+  version: master
