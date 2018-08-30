@@ -59,6 +59,7 @@ var dbQueue dbQueue_t
 var database *db_t
 var dbShutdownChan chan bool = make(chan bool)
 var dbWg sync.WaitGroup
+var oldrow map[string]float64 = make(map[string]float64)
 
 func init() {
   database = NewDatabase()
@@ -92,13 +93,13 @@ func dbDoTransfer() {
   }
 
   sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-  row := make(map[string][]float64)
+  rows := make(map[string][]float64)
   for _, key := range keys {
     if key >= from {
       //log.Debugf("key [%d] %v", key, item);
       for _, item := range database.m[key] {
         row_key := item.ColName+":"+item.ColType
-        row[row_key] = append(row[row_key], item.ColVal)
+        rows[row_key] = append(rows[row_key], item.ColVal)
       }
       delete(database.m, key);
     } else {
@@ -106,9 +107,30 @@ func dbDoTransfer() {
     }
   }
 
-  for key, arr := range row {
+  row := make(map[string]float64) // Result
+  nowrow := make(map[string]float64) //next old row
+  for key, arr := range rows {
     median, _ := stats.Median(arr)
-    log.Debugf("ROW [%s] %.3f", key, median);
+    nowrow[key] = median
+    row[key] = median
+  }
+
+  
+  for key, val := range oldrow {
+    if _, ok := row[key]; !ok {
+      row[key] = val
+    }
+  }
+
+  // clear old row & copy to it nowrow
+  oldrow := make(map[string]float64)
+  for key, val := range nowrow {
+    oldrow[key] = val
+  }
+
+  // result
+  for key, val := range row {
+    log.Debugf("ROW [%s] %.3f", key, val);
   }
 }
 
@@ -124,7 +146,7 @@ func dbLoop(ms uint32) {
     case item := <- itemChan:
       dbStore(item)
     case <- ticker.C:
-      log.Debug("Ticker ticked")
+      log.Debug("Make clickhouse row")
       dbDoTransfer()
     case <- dbShutdownChan:
       log.Debug("DB shuting down")
