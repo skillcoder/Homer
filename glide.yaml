@@ -6,5 +6,7 @@ import:
   version: ^1.1.1
 - package: github.com/kshvakov/clickhouse
   version: ^1.3.4
+- package: github.com/montanaflynn/stats
+  version: ^0.3.0
 - package: github.com/skillcoder/go-common-handlers
   version: master

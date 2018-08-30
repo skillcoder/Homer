@@ -150,6 +150,8 @@ func main() {
     }()
   }
 
+  go dbLoop(5000)
+
   logger := log.WithField("event", "shutdown")
   sdHandler := shutdown.NewHandler(logger)
   sdHandler.RegisterShutdown(sd)
@@ -158,6 +160,7 @@ func main() {
 // sd does graceful dhutdown of the service
 func sd() (string, error) {
   // if service has to finish some tasks before shutting down, these tasks must be finished her
+  dbShutdown()
   // TODO(developer): wait for all gorutined ends
   // http://devs.cloudimmunity.com/gotchas-and-common-mistakes-in-go-golang/index.html#gor_app_exit
   return "Ok", nil

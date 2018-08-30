@@ -123,7 +123,7 @@ var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.M
               timestamp = int64(value)
             }
 
-            dbAdd(espRoom, espTheme, value, timestamp)
+            dbAddEvent(espRoom, espTheme, value, timestamp)
           // float
           } else if espTheme == "temp" || espTheme == "humd" || espTheme == "pres" {
             value, err := strconv.ParseFloat(payload_str, 64)
@@ -133,10 +133,11 @@ var mqttMessageHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.M
               return
             }
 
-            dbAdd(espRoom, espTheme, value, timestamp)
+            dbAddMetric(espRoom, espTheme, value, timestamp)
           // string
           } else {
-            dbAdd(espRoom, espTheme, payload_str, timestamp)
+            //dbAdd(espRoom, espTheme, payload_str, timestamp)
+            log.Errorf("Unknown Theme type: %s", espTheme)
           }
 /*
         switch espTheme {
