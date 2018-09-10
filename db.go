@@ -2,12 +2,13 @@
 package main
 
 import (
-//  "strings"
   "time"
 //  "reflect"
   "sync"
   "sort"
   "github.com/montanaflynn/stats"
+  "strings"
+  "fmt"
 )
 
 type dbItem_t struct {
@@ -47,7 +48,7 @@ func (c *db_t) Load(key int64) ([]dbItem_t, bool) {
 func (c *db_t) Add(key int64, item dbItem_t) {
   column, ok := c.Load(key)
   if !ok {
-    column = make([]dbItem_t, 0, 10)
+    column = make([]dbItem_t, 0, count_of_columns+1)
   }
 
   column = append(column, item)
@@ -60,6 +61,7 @@ var database *db_t
 var dbShutdownChan chan bool = make(chan bool)
 var dbWg sync.WaitGroup
 var oldrow map[string]float64 = make(map[string]float64)
+var count_of_columns int8 = 10; // need update by request DDL from clickhouse for table values
 
 func init() {
   database = NewDatabase()
@@ -85,7 +87,8 @@ func dbStore(item dbItem_t) {
 }
 
 func dbDoTransfer() {
-  var timestamp int64 = time.Now().Unix()
+  now := time.Now()
+  var timestamp int64 = now.Unix()
   from := timestamp - 5;
   keys := make([]int64, 0, len(database.m))
   for k := range database.m {
@@ -103,6 +106,7 @@ func dbDoTransfer() {
       }
       delete(database.m, key);
     } else {
+      // FIXME need send it too (its late data)
       log.Warnf("key [%d] %v", key, database.m[key]);
     }
   }
@@ -129,8 +133,20 @@ func dbDoTransfer() {
   }
 
   // result
+  sql := make([]string, 0, count_of_columns+1)
   for key, val := range row {
-    log.Debugf("ROW [%s] %.3f", key, val);
+    // TODO check key name column exist in our ckickhouse DDL
+    // if not - create it by ALTER TABLE values ADD key float8
+    log.Debugf("ROW [%s] %.3f", key, val)
+    //create insert here like this
+    sql = append(sql, fmt.Sprintf("`%s` = %f", key, val))
+  }
+
+  if len(sql) > 0 {
+    year, month, day := now.Date()
+    weekday := now.Weekday()
+    if weekday == 0 { weekday = 7 }
+    log.Debug(fmt.Sprintf("INSERT INTO `values` SET `time` = %d, `year` = %d, `month` = %d, `day` = %d, `weekday` = %d, `hour` = %d, `minute` = %d, %s", timestamp, year, month, day, weekday, now.Hour(), now.Minute(), strings.Join(sql, ", ")))
   }
 }
 
