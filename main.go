@@ -26,6 +26,13 @@ var espKnownNodes map[string]bool = make(map[string]bool)
 var log = logrus.New()
 
 func init() {
+}
+
+func main() {
+  //log.Out = os.Stdout
+  fmt.Printf("Homer v%s [%s] (%s)\n", version.RELEASE, version.BUILD, SERVICE_MODE)
+  fmt.Printf("WWW: %s (%s)\n\n", version.REPO, version.COMMIT)
+
   // set environment depending on an environment variable or command-line flag
   if os.Getenv("SERVICE_MODE") != "" {
     SERVICE_MODE = os.Getenv("SERVICE_MODE")
@@ -48,12 +55,8 @@ func init() {
     "mode": SERVICE_MODE,
   }).Warn("Inited")
   */
-}
 
-func main() {
-  //log.Out = os.Stdout
-  fmt.Printf("Homer v%s [%s] (%s)\n", version.RELEASE, version.BUILD, SERVICE_MODE)
-  fmt.Printf("WWW: %s (%s)\n\n", version.REPO, version.COMMIT)
+  config_load()
 
   http_listen := os.Getenv("HOMER_SERVICE_LISTEN")
   if len(http_listen) == 0 {
@@ -149,6 +152,8 @@ func main() {
     log.Println(http.ListenAndServe("localhost:6060", nil))
     }()
   }
+
+  clickhouse_connect()
 
   go dbLoop(5000)
 

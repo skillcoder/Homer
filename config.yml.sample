@@ -1,0 +1,12 @@
+mqtt:
+    host: '192.168.100.254'
+    port: 1883
+    user: ''
+    pass: ''
+
+clickhouse:
+    host: '192.168.100.254'
+    port: 9000
+    user: 'homer'
+    pass: '42lZetyc'
+    name: 'homer'
