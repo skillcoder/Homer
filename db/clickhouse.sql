@@ -1,6 +1,4 @@
-CREATE DATABASE homer;
-
-CREATE TABLE `metrics` (
+CREATE TABLE homer`metrics` (
 	`date`    Date DEFAULT toDate(ctime),
 	`ctime`   DateTime,
 	`street-n:temp` Nullable(Float32),
