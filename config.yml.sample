@@ -1,12 +1,32 @@
+# HOMER_CONFIG_DIR - Need traling slash) where search config.yml
+# if config cant find in HOMER_DATA_DIR - search in directory with binary file
+configdir: '/etc/homer/'
+# HOMER_DATA_DIR - (Need traling slash) where store data
+datadir: '/var/lib/homer/'
+# HOMER_MODE [development/production]
+mode: 'production'
+# HOMER_LISTEN
+listen: '127.0.0.1:18266'
 mqtt:
+    # HOMER_MQTT_HOST
     host: '127.0.0.1'
+    # HOMER_MQTT_PORT
     port: 1883
+    # HOMER_MQTT_USER
     user: ''
+    # HOMER_MQTT_PASS
     pass: ''
+    # HOMER_MQTT_NAME
+    name: 'go-homer-server'
 
 clickhouse:
+    # HOMER_CLICKHOUSE_HOST
     host: '127.0.0.1'
+    # HOMER_CLICKHOUSE_PORT
     port: 9000
+    # HOMER_CLICKHOUSE_USER
     user: 'homer'
+    # HOMER_CLICKHOUSE_PASS
     pass: '*secret*'
+    # HOMER_CLICKHOUSE_NAME - database name
     name: 'homer'

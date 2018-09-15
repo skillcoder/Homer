@@ -28,7 +28,7 @@ sudo apt install golang-glide
 ```
 cd ~/go/src/github.com/skillcoder/homer
 glide update
-go build -race -ldflags "-X github.com/skillcoder/homer/version.BUILD=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X github.com/skillcoder/homer/version.COMMIT=`git rev-parse HEAD` -X github.com/skillcoder/homer/version.RELEASE=`cat VERSION`"
+go build -race -ldflags "-X github.com/skillcoder/homer/version.BUILD=`date -u '+%Y-%m-%d_%H:%M:%S%p'` -X github.com/skillcoder/homer/version.COMMIT=`git rev-parse HEAD` -X github.com/skillcoder/homer/version.RELEASE=`cat VERSION`"
 ```
 
 ### CONFIG
@@ -47,7 +47,7 @@ clickhouse-client -h 127.0.0.1 -u homer --password=*secter* --database=homer < d
 
 ### RUN
 ```
-export HOMER_SERVICE_LISTEN=127.0.0.1:18266; export SERVICE_MODE=development; export HOMER_SERVICE_NAME=go-homer-server
 ./homer
 ```
+You can change config setting by enveroment variables, see in config.yml.sample
 

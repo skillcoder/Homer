@@ -16,3 +16,4 @@
 /vendor
 /.local.*
 /config.yml
+/data/*
