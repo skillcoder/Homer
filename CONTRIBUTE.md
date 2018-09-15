@@ -36,11 +36,11 @@ go build -race -ldflags "-X github.com/skillcoder/homer/version.BUILD=`date -u '
 cp config.yml.sample config.yml
 vim config.yml
 ```
-You need install & setup clickhouse database
-create user *homer* in clickhouse-server/users.xml
+You need install & setup clickhouse database  
+create user *homer* in clickhouse-server/users.xml  
 `clickhouse-client -h 127.0.0.1 -u homer --password=*secter* --query="CREATE DATABASE homer;"`  
 Edit db/clickhouse.sql for your esp devices sensors  
-import sql from db/clickhouse.sql to clickhouse (create tables) like this:
+import sql from db/clickhouse.sql to clickhouse (create tables) like this:  
 ```
 clickhouse-client -h 127.0.0.1 -u homer --password=*secter* --database=homer < db/clickhouse.sql
 ```
