@@ -1,12 +1,12 @@
 mqtt:
-    host: '192.168.100.254'
+    host: '127.0.0.1'
     port: 1883
     user: ''
     pass: ''
 
 clickhouse:
-    host: '192.168.100.254'
+    host: '127.0.0.1'
     port: 9000
     user: 'homer'
-    pass: '42lZetyc'
+    pass: '*secret*'
     name: 'homer'

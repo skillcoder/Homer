@@ -26,13 +26,6 @@ var espKnownNodes map[string]bool = make(map[string]bool)
 var log = logrus.New()
 
 func init() {
-}
-
-func main() {
-  //log.Out = os.Stdout
-  fmt.Printf("Homer v%s [%s] (%s)\n", version.RELEASE, version.BUILD, SERVICE_MODE)
-  fmt.Printf("WWW: %s (%s)\n\n", version.REPO, version.COMMIT)
-
   // set environment depending on an environment variable or command-line flag
   if os.Getenv("SERVICE_MODE") != "" {
     SERVICE_MODE = os.Getenv("SERVICE_MODE")
@@ -55,17 +48,18 @@ func main() {
     "mode": SERVICE_MODE,
   }).Warn("Inited")
   */
+}
+
+func main() {
+  //log.Out = os.Stdout
+  fmt.Printf("Homer v%s [%s] (%s)\n", version.RELEASE, version.BUILD, SERVICE_MODE)
+  fmt.Printf("WWW: %s (%s)\n\n", version.REPO, version.COMMIT)
 
   config_load()
 
   http_listen := os.Getenv("HOMER_SERVICE_LISTEN")
   if len(http_listen) == 0 {
     log.Fatal("Required env parameter HOMER_SERVICE_LISTEN [ip:port] is not set")
-  }
-
-  mqtt_server := os.Getenv("MQTT_SERVER")
-  if len(mqtt_server) == 0 {
-    log.Fatal("Required env parameter MQTT_SERVER [ip:port] is not set")
   }
 
   service_name := os.Getenv("HOMER_SERVICE_NAME")
@@ -75,7 +69,7 @@ func main() {
 
   //create a ClientOptions struct setting the broker address, clientid, turn
   //off trace output and set the default message handler
-  opts := MQTT.NewClientOptions().AddBroker("tcp://"+mqtt_server)
+  opts := MQTT.NewClientOptions().AddBroker("tcp://"+config.Mqtt.Host+':'+string(config.Mqtt.Port))
   opts.SetClientID(service_name)
   opts.SetDefaultPublishHandler(mqttMessageHandler)
 
