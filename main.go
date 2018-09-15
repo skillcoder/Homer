@@ -69,7 +69,8 @@ func main() {
 
   //create a ClientOptions struct setting the broker address, clientid, turn
   //off trace output and set the default message handler
-  opts := MQTT.NewClientOptions().AddBroker("tcp://"+config.Mqtt.Host+":"+string(config.Mqtt.Port))
+  mqtturl := fmt.Sprintf("tcp://%s:%d", config.Mqtt.Host, config.Mqtt.Port);
+  opts := MQTT.NewClientOptions().AddBroker(mqtturl)
   opts.SetClientID(service_name)
   opts.SetDefaultPublishHandler(mqttMessageHandler)
 
