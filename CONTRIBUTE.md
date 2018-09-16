@@ -49,5 +49,11 @@ clickhouse-client -h 127.0.0.1 -u homer --password=*secter* --database=homer < d
 ```
 ./homer
 ```
-You can change config setting by enveroment variables, see in config.yml.sample
+You can change config setting by enveroment variables, see in config.yml.sample  
+
+Example, run second instance:  
+```
+export export HOMER_LISTEN=127.0.0.1:18267; export HOMER_MODE=development; export HOMER_MQTT_NAME=go-homer-server-dev
+./homer
+```
 

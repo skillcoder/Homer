@@ -34,7 +34,7 @@ func main() {
 
   config_load()
 
-  fmt.Printf("HOMER_MODE %s\n", config.Mode)
+  fmt.Printf("Switch HOMER_MODE to %s\n", config.Mode)
   if config.Mode == "production" {
     logrus.SetFormatter(&logrus.JSONFormatter{})
     log.SetLevel(logrus.WarnLevel)
