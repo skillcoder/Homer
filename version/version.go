@@ -5,11 +5,11 @@ package version
 // see how to use: https://github.com/golang/go/wiki/GcToolchainTricks
 var (
 	// REPO returns the git repository URL
-	REPO string = "https://github.com/skillcoder/Homer.git"
+	REPO = "https://github.com/skillcoder/Homer.git"
 	// RELEASE returns the release version
-	RELEASE string = "UNKNOWN"
+	RELEASE = "UNKNOWN"
 	// COMMIT returns the short sha from git
-	COMMIT string = "UNKNOWN"
+	COMMIT = "UNKNOWN"
 	// STAMP returns time and date of build
-	BUILD string = "UNKNOWN"
+	BUILD = "UNKNOWN"
 )

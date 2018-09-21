@@ -41,7 +41,7 @@ func config_load() {
   log.Debugf("Read config: %s", configfile)
   data := read_file(configfile)
 
-  err := yaml.Unmarshal([]byte(data), &config)
+  err := yaml.Unmarshal(data, &config)
   if err != nil {
     log.Fatalf("error: %v", err)
     os.Exit(2)

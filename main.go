@@ -5,21 +5,16 @@ import (
   "net/http"
   "fmt"
 //  "log"
-  "os"
-  "strings"
+//  "strings"
 //  "time"
 //  "sync"
   _ "net/http/pprof"
   "github.com/sirupsen/logrus"
   "github.com/takama/router"
-  "github.com/micro/mdns"
-  MQTT "github.com/eclipse/paho.mqtt.golang"
   "github.com/skillcoder/homer/version"
   "github.com/skillcoder/homer/shutdown"
   infoHandler "github.com/skillcoder/go-common-handlers/info"
 )
-
-var espKnownNodes map[string]bool = make(map[string]bool)
 
 var log = logrus.New()
 
@@ -53,68 +48,7 @@ func main() {
   }).Warn("Inited")
   */
 
-  //create a ClientOptions struct setting the broker address, clientid, turn
-  //off trace output and set the default message handler
-  mqtturl := fmt.Sprintf("tcp://%s:%d", config.Mqtt.Host, config.Mqtt.Port);
-  opts := MQTT.NewClientOptions().AddBroker(mqtturl)
-  opts.SetClientID(config.Mqtt.Name)
-  opts.SetDefaultPublishHandler(mqttMessageHandler)
-
-  //create and start a client using the above ClientOptions
-  mqttClient := MQTT.NewClient(opts)
-  if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
-    log.Panic("mqttClient.Connect:", token.Error())
-    panic(token.Error())
-  }
-
-  //subscribe to the topic /go-mqtt/sample and request messages to be delivered
-  //at a maximum qos of zero, wait for the receipt to confirm the subscription
-  if token := mqttClient.Subscribe("/esp/init", 0, nil); token.Wait() && token.Error() != nil {
-    log.Fatal("mqttClient.Subscribe:", token.Error())
-    os.Exit(1)
-  }
-
-  //Publish 5 messages to /go-mqtt/sample at qos 1 and wait for the receipt
-  //from the server after sending each message
-  /*
-  for i := 0; i < 5; i++ {
-    text := fmt.Sprintf("this is msg #%d!", i)
-    token := mqttClient.Publish("go-mqtt/sample", 0, false, text)
-    token.Wait()
-  }
-
-  time.Sleep(3 * time.Second)
-  */
-
-  //unsubscribe from /go-mqtt/sample
-  /*
-  if token := mqttClient.Unsubscribe("go-mqtt/sample"); token.Wait() && token.Error() != nil {
-    fmt.Println(token.Error())
-    os.Exit(1)
-  }
-  */
-  //mqttClient.Disconnect(250)
-
-  // Make a channel for results and start listening
-  entriesCh := make(chan *mdns.ServiceEntry, 8)
-  go func() {
-    for entry := range entriesCh {
-        //fmt.Printf("Got new entry: %v\n", entry)
-      log.Infof("New node detected: (%s) [%s]", entry.Host, entry.AddrV4)
-      s := strings.SplitN(entry.Host, ".", 2)
-      mqttNodeSubscribe(mqttClient, s[0])
-    }
-
-    log.Info("Node discovery thread ended");
-  }()
-
-  // Start the lookup
-  err := mdns.Lookup("_homer._tcp", entriesCh)
-  if err != nil {
-    log.Error(err)
-  }
-
-  close(entriesCh)
+  mqttConnect(config.Mqtt.Host, config.Mqtt.Port, config.Mqtt.Name)
 
   r := router.New()
   r.Logger = logger
