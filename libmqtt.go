@@ -9,6 +9,7 @@ import (
 var mqttClient libmqtt.Client
 
 func mqttSubscribe(Name string) {
+  log.Debugf("Subscribing: %s", Name)
   mqttClient.Subscribe(&libmqtt.Topic{Name: Name})
 }
 
@@ -94,7 +95,7 @@ func mqttConnect(host string, port uint16, name string) {
         log.Panic("mqttConnect ERR:", err)
     }
 
-    if code != libmqtt.CtrlConn {
+    if code != libmqtt.CodeSuccess {
         // server rejected or in error
         log.Panicf("mqttConnect server CODE: %d", code)
     }
