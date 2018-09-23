@@ -1,14 +1,17 @@
-# HOMER_CONFIG_DIR - Need traling slash) where search config.yml
-# if config cant find in HOMER_DATA_DIR - search in directory with binary file
-configdir: '/etc/homer/'
-# HOMER_DATA_DIR - (Need traling slash) where store data
-datadir: '/var/lib/homer/'
+# HOMER_CONFIGFILE
+# HOMER_CONFIGDIR - Need traling slash) where search config.yml
+# if config cant find in HOMER_DATADIR - search in directory with binary file
+config_dir: '/etc/homer/'
+# HOMER_DATADIR - (Need traling slash) where store data
+data_dir: '/var/lib/homer/'
 # HOMER_MODE [development/production]
 mode: 'production'
 # HOMER_LISTEN
 listen: '127.0.0.1:18266'
-# HOMER_AGGREGATE_PERIOD
+# HOMER_AGGREGATEPERIOD
 aggregate_period: 5000
+# HOMER_VERBOSE
+verbose: false
 mqtt:
     # HOMER_MQTT_HOST
     host: '127.0.0.1'

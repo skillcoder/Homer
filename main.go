@@ -1,9 +1,10 @@
 package main
-/* vim: set ts=2 sw=2 sts=2 et ff=unix: */
+/* vim: set ts=2 sw=2 sts=2 ff=unix noexpandtab: */
 
 import (
   "net/http"
   "fmt"
+  "os"
 //  "log"
 //  "strings"
 //  "time"
@@ -20,6 +21,24 @@ var log = logrus.New()
 
 func init() {
   log.SetLevel(logrus.DebugLevel)
+}
+
+func check(e error) {
+	if e != nil {
+		failWith(e.Error())
+	}
+}
+
+func failWith(msg string) {
+	log.Fatal(msg)
+  fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
+}
+
+func verbosePrint(msg string) {
+	if config.Verbose {
+		fmt.Println("[V]", msg)
+	}
 }
 
 func main() {

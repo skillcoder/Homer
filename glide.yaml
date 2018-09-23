@@ -10,5 +10,7 @@ import:
   version: ^0.3.0
 - package: github.com/micro/mdns
 - package: github.com/goiiot/libmqtt
+- package: github.com/spf13/viper
+  version: ^1.2.0
 - package: github.com/skillcoder/go-common-handlers
   version: master

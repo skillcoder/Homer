@@ -1,187 +1,118 @@
 package main
-/* vim: set ts=2 sw=2 sts=2 et: */
+
+/* vim: set ts=2 sw=2 sts=2 ff=unix noexpandtab: */
 
 import (
-  "io/ioutil"
-  "os"
-  "strconv"
+	"runtime"
+	"strings"
 
-  "gopkg.in/yaml.v2"
+	"github.com/spf13/viper"
 )
 
 type configT struct {
-  ConfigDir string `yaml:"configdir"`
-  DataDir string `yaml:"datadir"`
-  Mode    string `yaml:"mode"`
-  Listen  string `yaml:"listen"`
-  AggregatePeriod uint32 `yaml:"aggregate_period"`
-  Mqtt struct {
-    Host string `yaml:"host"`
-    Port uint16 `yaml:"port"`
-    User string `yaml:"user"`
-    Pass string `yaml:"pass"`
-    Name string `yaml:"name"`
-  }
-  ClickHouse struct {
-    Host string `yaml:"host"`
-    Port uint16 `yaml:"port"`
-    User string `yaml:"user"`
-    Pass string `yaml:"pass"`
-    Name string `yaml:"name"`
-  }
+	ConfigFile      string `yaml:"config_file"`
+	ConfigDir       string `yaml:"config_dir"`
+	DataDir         string `yaml:"data_dir"`
+	Mode            string `yaml:"mode"`
+	Listen          string `yaml:"listen"`
+	AggregatePeriod uint32 `yaml:"aggregate_period"`
+	Verbose         bool   `yaml:"verbose"`
+	Mqtt            struct {
+		Host string `yaml:"host"`
+		Port uint16 `yaml:"port"`
+		User string `yaml:"user"`
+		Pass string `yaml:"pass"`
+		Name string `yaml:"name"`
+	}
+	ClickHouse struct {
+		Host string `yaml:"host"`
+		Port uint16 `yaml:"port"`
+		User string `yaml:"user"`
+		Pass string `yaml:"pass"`
+		Name string `yaml:"name"`
+	}
 }
 
 var config = configT{}
 
 // TODO: switch to github.com/spf13/viper
 func configLoad() {
-  configSetFromEnv("HOMER_CONFIG_DIR",  "/etc/homer/", false)
-  configfile := config.ConfigDir+"config.yml"
-  if _, err := os.Stat(configfile); os.IsNotExist(err) {
-    configfile = "config.yml"
-  }
+	// use config file if set from the flags
+	if config.ConfigFile != "" {
+		log.Debug("Using config file ", config.ConfigFile)
+		viper.SetConfigFile(config.ConfigFile)
+	}
 
-  log.Debugf("Read config: %s", configfile)
-  data := readFile(configfile)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
 
-  err := yaml.Unmarshal(data, &config)
-  if err != nil {
-    log.Fatalf("error: %v", err)
-    os.Exit(2)
-  }
-/*
-  var allenvlist = [...]string {
-    "HOMER_CONFIG_DIR"
-    "HOMER_DATA_DIR",
-    "HOMER_MODE",
-    "HOMER_LISTEN",
-    "HOMER_MQTT_HOST",
-    "HOMER_MQTT_PORT",
-    "HOMER_MQTT_USER",
-    "HOMER_MQTT_PASS",
-    "HOMER_MQTT_NAME",
-    "HOMER_CLICKHOUSE_HOST",
-    "HOMER_CLICKHOUSE_PORT",
-    "HOMER_CLICKHOUSE_USER",
-    "HOMER_CLICKHOUSE_PASS",
-    "HOMER_CLICKHOUSE_NAME",
-  }
-*/
+	var DefaultConfigDir = "/etc/homer"
+	var DefaultDataDir = "/var/lib/homer/"
+	if runtime.GOOS == "freebsd" {
+		DefaultConfigDir = "/usr/local/etc/homer"
+		DefaultDataDir = "/var/db/homer/"
+	}
 
-  //log.Debugf("CONFIG: %#v", config)
-  configSetFromEnv("HOMER_CONFIG_DIR",  "/etc/homer/", true)
-  configSetFromEnv("HOMER_DATA_DIR",  "/var/lib/homer/", true)
-  configSetFromEnv("HOMER_MODE",      "production", true)
-  configSetFromEnv("HOMER_LISTEN",    ":18266", true)
-  configSetFromEnv("HOMER_AGGREGATE_PERIOD", 5000, true)
-  configSetFromEnv("HOMER_MQTT_HOST", "127.0.0.1", true)
-  configSetFromEnv("HOMER_MQTT_PORT", 1883, true)
-  configSetFromEnv("HOMER_MQTT_USER", "", true)
-  configSetFromEnv("HOMER_MQTT_PASS", "", false)
-  configSetFromEnv("HOMER_MQTT_NAME", "go-homer-server", true)
-  configSetFromEnv("HOMER_CLICKHOUSE_HOST", "127.0.0.1", true)
-  configSetFromEnv("HOMER_CLICKHOUSE_PORT", 9000, true)
-  configSetFromEnv("HOMER_CLICKHOUSE_USER", "homer", true)
-  configSetFromEnv("HOMER_CLICKHOUSE_PASS", "", false)
-  configSetFromEnv("HOMER_CLICKHOUSE_NAME", "homer", true)
+	log.Debugf("Add %s config path %s", runtime.GOOS, DefaultConfigDir)
+	viper.AddConfigPath(DefaultConfigDir)
+	viper.AddConfigPath(".")
+
+	viper.SetDefault("ConfigDir", DefaultConfigDir)
+	viper.SetDefault("DataDir", DefaultDataDir)
+	viper.SetDefault("Mode", "production")
+	viper.SetDefault("Listen", ":18266")
+	viper.SetDefault("AggregatePeriod", 5000)
+	viper.SetDefault("Mqtt.Host", "127.0.0.1")
+	viper.SetDefault("Mqtt.Port", 1883)
+	viper.SetDefault("Mqtt.User", "")
+	viper.SetDefault("Mqtt.Pass", "")
+	viper.SetDefault("Mqtt.Name", "go-homer-server")
+	viper.SetDefault("ClickHouse.Host", "127.0.0.1")
+	viper.SetDefault("ClickHouse.Port", 9000)
+	viper.SetDefault("ClickHouse.User", "homer")
+	viper.SetDefault("ClickHouse.Pass", "")
+	viper.SetDefault("ClickHouse.Name", "homer")
+
+	err := viper.ReadInConfig()
+	switch err.(type) {
+	case viper.UnsupportedConfigError:
+		log.Info("No config file, using defaults")
+	default:
+		check(err)
+	}
+
+	config.ConfigFile = viper.ConfigFileUsed()
+	// TODO: relative to the config/binary -> https://github.com/davidpelaez/gh-keys/blob/master/gh-keys/config.go
+
+	viper.SetEnvPrefix("HOMER")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	//BindEnv("")
+	viper.AutomaticEnv()
+
+	err = viper.Unmarshal(&config)
+	check(err)
+
+	configPrintSummary()
 }
 
-func configSetFromEnv(envname string, defaultValue interface{}, isLog bool) {
-  switch envname {
-    case "HOMER_CONFIG_DIR":
-      if len(os.Getenv(envname)) > 0 { config.ConfigDir = os.Getenv(envname) }
-      if len(config.ConfigDir) == 0 { config.ConfigDir = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.ConfigDir)}
-    case "HOMER_DATA_DIR":
-      if len(os.Getenv(envname)) > 0 { config.DataDir = os.Getenv(envname) }
-      if len(config.DataDir) == 0 { config.DataDir = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.DataDir)}
-    case "HOMER_MODE":
-      if len(os.Getenv(envname)) > 0 { config.Mode = os.Getenv(envname) }
-      if len(config.Mode) == 0 { config.Mode = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.Mode)}
-    case "HOMER_LISTEN":
-      if len(os.Getenv(envname)) > 0 { config.Listen = os.Getenv(envname) }
-      if len(config.Listen) == 0 { config.Listen = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.Listen)}
-    case "HOMER_AGGREGATE_PERIOD":
-      if len(os.Getenv(envname)) > 0 {
-        if val, err := strconv.ParseUint(os.Getenv(envname), 10, 32); err == nil {
-          config.AggregatePeriod = uint32(val)
-        } else {
-          log.Panicf("Cant parse %s as uint32: %v", envname, err)
-        }
-      }
-      if config.AggregatePeriod == 0 { config.AggregatePeriod = defaultValue.(uint32) }
-      if isLog {log.Debugf("%s = %d", envname, config.AggregatePeriod)}
-    case "HOMER_MQTT_HOST":
-      if len(os.Getenv(envname)) > 0 { config.Mqtt.Host = os.Getenv(envname) }
-      if len(config.Mqtt.Host) == 0 { config.Mqtt.Host = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.Mqtt.Host)}
-    case "HOMER_MQTT_PORT":
-      if len(os.Getenv(envname)) > 0 {
-        if val, err := strconv.ParseUint(os.Getenv(envname), 10, 16); err == nil {
-          config.Mqtt.Port = uint16(val)
-        } else {
-          log.Panicf("Cant parse %s as uint16: %v", envname, err)
-        }
-      }
-      if config.Mqtt.Port == 0 { config.Mqtt.Port = defaultValue.(uint16) }
-      if isLog {log.Debugf("%s = %d", envname, config.Mqtt.Port)}
-    case "HOMER_MQTT_USER":
-      if len(os.Getenv(envname)) > 0 { config.Mqtt.User = os.Getenv(envname) }
-      if len(config.Mqtt.User) == 0 { config.Mqtt.User = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.Mqtt.User)}
-    case "HOMER_MQTT_PASS":
-      if len(os.Getenv(envname)) > 0 { config.Mqtt.Pass = os.Getenv(envname) }
-      if len(config.Mqtt.Pass) == 0 { config.Mqtt.Pass = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.Mqtt.Pass)}
-    case "HOMER_MQTT_NAME":
-      if len(os.Getenv(envname)) > 0 { config.Mqtt.Name = os.Getenv(envname) }
-      if len(config.Mqtt.Name) == 0 { config.Mqtt.Name = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.Mqtt.Name)}
-    case "HOMER_CLICKHOUSE_HOST":
-      if len(os.Getenv(envname)) > 0 { config.ClickHouse.Host = os.Getenv(envname) }
-      if len(config.ClickHouse.Host) == 0 { config.ClickHouse.Host = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.ClickHouse.Host)}
-    case "HOMER_CLICKHOUSE_PORT":
-      if len(os.Getenv(envname)) > 0 {
-        if val, err := strconv.ParseUint(os.Getenv(envname), 10, 16); err == nil {
-          config.ClickHouse.Port = uint16(val)
-        } else {
-          log.Panicf("Cant parse %s as uint16: %v", envname, err)
-        }
-      }
-      if config.ClickHouse.Port == 0 { config.ClickHouse.Port = defaultValue.(uint16) }
-      if isLog {log.Debugf("%s = %d", envname, config.ClickHouse.Port)}
-    case "HOMER_CLICKHOUSE_USER":
-      if len(os.Getenv(envname)) > 0 { config.ClickHouse.User = os.Getenv(envname) }
-      if len(config.ClickHouse.User) == 0 { config.ClickHouse.User = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.ClickHouse.User)}
-    case "HOMER_CLICKHOUSE_PASS":
-      if len(os.Getenv(envname)) > 0 { config.ClickHouse.Pass = os.Getenv(envname) }
-      if len(config.ClickHouse.Pass) == 0 { config.ClickHouse.Pass = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.ClickHouse.Pass)}
-    case "HOMER_CLICKHOUSE_NAME":
-      if len(os.Getenv(envname)) > 0 { config.ClickHouse.Name = os.Getenv(envname) }
-      if len(config.ClickHouse.Name) == 0 { config.ClickHouse.Name = defaultValue.(string) }
-      if isLog {log.Debugf("%s = %s", envname, config.ClickHouse.Name)}
-      /*
-    case "":
-      if len(os.Getenv(envname)) > 0 { config. = os.Getenv(envname) }
-      if len(config.) == 0 { config. = defaultValue.(string) }
-      */
-    default:
-      log.Panic("Unknown envname: ", envname)
-    }
+func logConfigItem(key string, rawValue interface{}) {
+	log.Debugf("%19s: %v", key, rawValue)
 }
 
-func readFile(filename string) (b []byte) {
-  b, err := ioutil.ReadFile(filename)
-  if err != nil {
-    log.Panic(err)
-    panic(err);
-  }
-
-  return b
+func configPrintSummary() {
+	logConfigItem("ConfigFile", config.ConfigFile)
+	logConfigItem("ConfigDir", config.ConfigDir)
+	logConfigItem("DataDir", config.DataDir)
+	logConfigItem("Mode", config.Mode)
+	logConfigItem("Listen", config.Listen)
+	logConfigItem("AggregatePeriod", config.AggregatePeriod)
+	logConfigItem("Verbose", config.Verbose)
+	logConfigItem("Mqtt.Host", config.Mqtt.Host)
+	logConfigItem("Mqtt.Port", config.Mqtt.Port)
+	logConfigItem("Mqtt.User", config.Mqtt.User)
+	logConfigItem("Mqtt.Name", config.Mqtt.Name)
+	logConfigItem("ClickHouse.Host", config.ClickHouse.Host)
+	logConfigItem("ClickHouse.Port", config.ClickHouse.Port)
+	logConfigItem("ClickHouse.User", config.ClickHouse.User)
+	logConfigItem("ClickHouse.Name", config.ClickHouse.Name)
 }
