@@ -3,14 +3,15 @@ package main
 
 import (
   "fmt"
+  "strings"
   "github.com/goiiot/libmqtt"
 )
 
 var mqttClient libmqtt.Client
 
-func mqttSubscribe(Name string) {
-  log.Debugf("Subscribing: %s", Name)
-  mqttClient.Subscribe(&libmqtt.Topic{Name: Name})
+func mqttSubscribe(name string) {
+  log.Debugf("Subscribing: %s", name)
+  mqttClient.Subscribe(&libmqtt.Topic{Name: name})
 }
 
 func PubHandler (topic string, err error) {
@@ -27,7 +28,7 @@ func SubHandler (topics []*libmqtt.Topic, err error) {
     // TODO: We musr recover this first!!!
   } else {
     for _, topic := range(topics) {
-      mqttClient.Handle(topic.Name, func(topic string, qos libmqtt.QosLevel, msg []byte) {
+      mqttClient.Handle(strings.Replace(topic.Name, "#", ".*", -1), func(topic string, qos libmqtt.QosLevel, msg []byte) {
         espMessageHandler(topic, msg)
       })
       log.Infof("Subscribed: %s", topic);
@@ -62,15 +63,17 @@ func PersistHandler(err error) {
 }
 
 func mqttConnect(host string, port uint16, name string) {
-  mqtturi := fmt.Sprintf("%s:%d", host, port);
-  mqttClient, err := libmqtt.NewClient(
+  mqtturi := fmt.Sprintf("%s:%d", host, port)
+  var err error
+  mqttClient, err = libmqtt.NewClient(
     libmqtt.WithServer(mqtturi),
     libmqtt.WithBuf(512, 512), // send, recv
     libmqtt.WithClientID(name),
     libmqtt.WithDialTimeout(2), // Connection timeout
     //libmqtt.WithIdentity(username, password),
 //    libmqtt.WithKeepalive(30, 1),
-    libmqtt.WithLog(libmqtt.Verbose), // Silent/Verbose/Debug/Info/Warning/Error
+    libmqtt.WithLog(libmqtt.Info), // Silent/Verbose/Debug/Info/Warning/Error
+    libmqtt.WithRouter(libmqtt.NewRegexRouter()),
     //libmqtt.WithPersist
   )
   if err != nil {
