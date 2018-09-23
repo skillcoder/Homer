@@ -7,6 +7,8 @@ datadir: '/var/lib/homer/'
 mode: 'production'
 # HOMER_LISTEN
 listen: '127.0.0.1:18266'
+# HOMER_AGGREGATE_PERIOD
+aggregate_period: 5000
 mqtt:
     # HOMER_MQTT_HOST
     host: '127.0.0.1'

@@ -1,52 +1,53 @@
-/* vim: set ts=2 sw=2 sts=2 et: */
 package main
+/* vim: set ts=2 sw=2 sts=2 et: */
 
 import (
   "time"
 //  "reflect"
   "sync"
   "sort"
+
   "github.com/montanaflynn/stats"
 )
 
-type dbItem_t struct {
+type dbItemT struct {
   ColName string
   ColType string
   ColVal float64
   Time int64
 }
 
-type dbQueue_t struct {
-  ch chan dbItem_t
+type dbQueueT struct {
+  ch chan dbItemT
 }
 
-func (q *dbQueue_t) Add(item dbItem_t) {
+func (q *dbQueueT) Add(item dbItemT) {
   q.ch <- item
 }
 
-func (q *dbQueue_t) getChan() <-chan dbItem_t {
+func (q *dbQueueT) getChan() <-chan dbItemT {
   return q.ch
 }
 
-type db_t struct {
-  m map[int64][]dbItem_t
+type dbT struct {
+  m map[int64][]dbItemT
 }
 
-func NewDatabase() *db_t {
-  return &db_t{
-    m: make(map[int64][]dbItem_t),
+func newDatabase() *dbT {
+  return &dbT{
+    m: make(map[int64][]dbItemT),
   }
 }
 
-func (c *db_t) Load(key int64) ([]dbItem_t, bool) {
+func (c *dbT) Load(key int64) ([]dbItemT, bool) {
   val, ok := c.m[key]
   return val, ok
 }
 
-func (c *db_t) Add(key int64, item dbItem_t) {
+func (c *dbT) Add(key int64, item dbItemT) {
   column, ok := c.Load(key)
   if !ok {
-    column = make([]dbItem_t, 0, clickhouse_count_of_columns+1)
+    column = make([]dbItemT, 0, clickhouseCountOfColumns+1)
   }
 
   column = append(column, item)
@@ -54,29 +55,29 @@ func (c *db_t) Add(key int64, item dbItem_t) {
 }
 
 
-var dbQueue dbQueue_t
-var database *db_t
-var dbShutdownChan chan bool = make(chan bool)
+var dbQueue dbQueueT
+var database *dbT
+var dbShutdownChan = make(chan bool)
 var dbWg sync.WaitGroup
-var oldrow map[string]float64 = make(map[string]float64)
+var oldrow = make(map[string]float64)
 
 func init() {
-  database = NewDatabase()
-  dbQueue = dbQueue_t{
-    ch:make(chan dbItem_t, 128),
+  database = newDatabase()
+  dbQueue = dbQueueT{
+    ch:make(chan dbItemT, 128),
   }
 }
 
-func dbAddMetric(field_name string, field_type string, valueInterface float64, time int64) {
-  dbQueue.Add(dbItem_t{field_name, field_type, valueInterface, time})
+func dbAddMetric(fieldName string, fieldType string, valueInterface float64, time int64) {
+  dbQueue.Add(dbItemT{fieldName, fieldType, valueInterface, time})
 }
 
-func dbAddEvent(field_name string, field_type string, valueInterface uint64, time int64) {
-  //dbQueue.Add(dbItem_t{field_name, field_type, valueInterface, time})
+func dbAddEvent(fieldName string, fieldType string, valueInterface uint64, time int64) {
+  //dbQueue.Add(dbItemT{fieldName, fieldType, valueInterface, time})
 }
 
 
-func dbStore(item dbItem_t) {
+func dbStore(item dbItemT) {
   //value := reflect.ValueOf(item.ColVal)
   //valueType := value.Type()
   log.Debugf("DB [%s:%s] <%T>=%v", item.ColName, item.ColType, item.ColVal, item.ColVal)
@@ -85,7 +86,7 @@ func dbStore(item dbItem_t) {
 
 func dbDoTransfer() {
   now := time.Now()
-  var timestamp int64 = now.Unix()
+  var timestamp = now.Unix()
   from := timestamp - 5;
   keys := make([]int64, 0, len(database.m))
   for k := range database.m {
@@ -98,8 +99,8 @@ func dbDoTransfer() {
     if key >= from {
       //log.Debugf("key [%d] %v", key, item);
       for _, item := range database.m[key] {
-        row_key := item.ColName+":"+item.ColType
-        rows[row_key] = append(rows[row_key], item.ColVal)
+        rowKey := item.ColName+":"+item.ColType
+        rows[rowKey] = append(rows[rowKey], item.ColVal)
       }
       delete(database.m, key);
     } else {
@@ -111,12 +112,13 @@ func dbDoTransfer() {
   row := make(map[string]float64) // Result
   nowrow := make(map[string]float64) //next old row
   for key, arr := range rows {
-    median, _ := stats.Median(arr)
-    nowrow[key] = median
-    row[key] = median
+    median, err := stats.Median(arr)
+    if err == nil {
+      nowrow[key] = median
+      row[key] = median
+    }
   }
 
-  
   for key, val := range oldrow {
     if _, ok := row[key]; !ok {
       row[key] = val
@@ -129,7 +131,7 @@ func dbDoTransfer() {
     oldrow[key] = val
   }
 
-  go ch_metric_insert(timestamp, row);
+  go clickhouseMetricInsert(timestamp, row);
 }
 
 // resend accomulated data to clickhouse in one row per sec

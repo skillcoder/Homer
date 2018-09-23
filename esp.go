@@ -1,28 +1,27 @@
-/* vim: set ts=2 sw=2 sts=2 et: */
 package main
+/* vim: set ts=2 sw=2 sts=2 et: */
 
 import (
-	"encoding/json"
 	"strings"
   "time"
   "strconv"
+	"encoding/json"
 )
 
 type espConnectedPacket struct {
     Act    string  `json:"act"`
-    Time   uint32  `json:"time"`
     Name   string  `json:"name"`
     Ap     string  `json:"ap"`
     Mac    string  `json:"mac"`
-    Ip     string  `json:"ip"`
+    IP     string  `json:"ip"`
     H      string  `json:"h"`
     V      string  `json:"v"`
+    Time   uint32  `json:"time"`
     UPD    uint32  `json:"upd"`
     Inited uint32  `json:"inited"`
-
-    Rssi   int16   `json:"rssi"`
-    Vcc    float32 `json:"vcc"`
     Free   uint32  `json:"free"`
+    Vcc    float32 `json:"vcc"`
+    Rssi   int16   `json:"rssi"`
 }
 
 /*
@@ -33,15 +32,15 @@ type espChannelsPacket struct {
 */
 type espStatusPacket struct{
     Act    string  `json:"act"`
-    Time   uint32  `json:"time"`
     Ap     string  `json:"ap"`
-    Rssi   int16   `json:"rssi"`
-    Vcc    float32 `json:"vcc"`
+    Time   uint32  `json:"time"`
     Free   uint32  `json:"free"`
     Uptime uint32  `json:"uptime"`
+    Vcc    float32 `json:"vcc"`
+    Rssi   int16   `json:"rssi"`
 }
 
-var espKnownNodes map[string]bool = make(map[string]bool)
+var espKnownNodes = make(map[string]bool)
 
 func espMessageHandler(topic string, payload []byte) {
     messageTime := time.Now()
@@ -88,7 +87,8 @@ func espMessageHandler(topic string, payload []byte) {
         case "status":
             packet := espStatusPacket{}
             json.Unmarshal(payload, &packet)
-            log.Infof("(%s) status [%d]: %s R:%d free:%d vcc:%.2f uptime:%d", espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
+            log.Infof("(%s) status [%d]: %s R:%d free:%d vcc:%.2f uptime:%d",
+              espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
             /*
         case "channels":
             packet := espChannelsPacket{}
@@ -98,23 +98,23 @@ func espMessageHandler(topic string, payload []byte) {
             log.Warnf("Unimplemented opcode: %s", payload)
         }
     } else {
-      payload_str := string(payload[:])
-      var espRoom string = espName;
+      payloadStr := string(payload[:])
+      var espRoom = espName;
       if (len(espTag) > 0) {
           espRoom = espTag
       }
 
-      var timestamp int64 = messageTime.Unix()
-      log.Debugf("[%d] %s %s %s", timestamp, espRoom, espTheme, payload_str)
+      var timestamp = messageTime.Unix()
+      log.Debugf("[%d] %s %s %s", timestamp, espRoom, espTheme, payloadStr)
 
       switch espTheme {
         case "count", "move", "led", "temp", "humd", "pres":
           // int8
           if espTheme == "count" || espTheme == "move" || espTheme == "led" {
-            value, err := strconv.ParseUint(payload_str, 10, 64)
+            value, err := strconv.ParseUint(payloadStr, 10, 64)
             if err != nil {
               // handle error
-              log.Errorf("[%d] %s %s %s convert to int: %s", timestamp, espRoom, espTheme, payload_str, err)
+              log.Errorf("[%d] %s %s %s convert to int: %s", timestamp, espRoom, espTheme, payloadStr, err)
               return
             }
 
@@ -125,17 +125,17 @@ func espMessageHandler(topic string, payload []byte) {
             dbAddEvent(espRoom, espTheme, value, timestamp)
           // float
           } else if espTheme == "temp" || espTheme == "humd" || espTheme == "pres" {
-            value, err := strconv.ParseFloat(payload_str, 64)
+            value, err := strconv.ParseFloat(payloadStr, 64)
             if err != nil {
               // handle error
-              log.Errorf("[%d] %s %s %s convert to float: %s", timestamp, espRoom, espTheme, payload_str, err)
+              log.Errorf("[%d] %s %s %s convert to float: %s", timestamp, espRoom, espTheme, payloadStr, err)
               return
             }
 
             dbAddMetric(espRoom, espTheme, value, timestamp)
           // string
           } else {
-            //dbAdd(espRoom, espTheme, payload_str, timestamp)
+            //dbAdd(espRoom, espTheme, payloadStr, timestamp)
             log.Errorf("Unknown Theme type: %s", espTheme)
           }
 /*
@@ -157,7 +157,9 @@ func espMessageHandler(topic string, payload []byte) {
         case "debug":
           //log.Debugf("Debug")
         default:
-          log.Warnf("Unknown topic Theme (%s) [%u] %s %s %s %u, we ignore it (but devs must fix this by adding esp handler for it)", espTheme, timestamp, espRoom, espTheme, payload_str)
+          log.Warnf("Unknown topic Theme (%s) [%u] %s %s %s %u,"+
+            " we ignore it (but devs must fix this by adding esp handler for it)",
+            espTheme, timestamp, espRoom, espTheme, payloadStr)
       }
    }
 }

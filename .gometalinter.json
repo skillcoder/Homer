@@ -1,0 +1,33 @@
+{
+	"DisableAll": false,
+ 	"Enable": [
+		"deadcode",
+		"dupl",
+		"errcheck",
+		"goconst",
+		"gocyclo",
+		"gofmt",
+		"gotype",
+		"goimports",
+		"gosec",
+		"golint",
+		"ineffassign",
+		"interfacer",
+		"lll",
+		"megacheck",
+		"misspell",
+		"maligned",
+		"nakedret",
+		"structcheck",
+		"test",
+		"testify",
+		"unconvert",
+		"varcheck",
+		"vet",
+		"unparam",
+		"safesql",
+		"vetshadow"
+ 	],
+ 	"Deadline": "100s",
+ 	"LineLength": 120
+}

@@ -1,9 +1,9 @@
-/* vim: set ts=2 sw=2 sts=2 et: */
 package main
+/* vim: set ts=2 sw=2 sts=2 et: */
 
 import (
   "fmt"
-  "strings"
+
   "github.com/goiiot/libmqtt"
 )
 
@@ -14,7 +14,7 @@ func mqttSubscribe(name string) {
   mqttClient.Subscribe(&libmqtt.Topic{Name: name})
 }
 
-func PubHandler (topic string, err error) {
+func pubHandler (topic string, err error) {
   if err != nil {
     log.Error("PubErr:", err)
   } else {
@@ -22,21 +22,18 @@ func PubHandler (topic string, err error) {
   }
 }
 
-func SubHandler (topics []*libmqtt.Topic, err error) {
+func subHandler (topics []*libmqtt.Topic, err error) {
   if err != nil {
     log.Error("SubErr:", err)
     // TODO: We musr recover this first!!!
   } else {
     for _, topic := range(topics) {
-      mqttClient.Handle(strings.Replace(topic.Name, "#", ".*", -1), func(topic string, qos libmqtt.QosLevel, msg []byte) {
-        espMessageHandler(topic, msg)
-      })
       log.Infof("Subscribed: %s", topic);
     }
   }
 }
 
-func UnSubHandler (topics []string, err error) {
+func unSubHandler (topics []string, err error) {
   if err != nil {
     log.Error("UnSubErr:", err)
   } else {
@@ -46,7 +43,7 @@ func UnSubHandler (topics []string, err error) {
   }
 }
 
-func NetHandler(server string, err error) {
+func netHandler(server string, err error) {
   if err != nil {
     log.Error("NetErr:", server, err)
   } else {
@@ -54,7 +51,7 @@ func NetHandler(server string, err error) {
   }
 }
 
-func PersistHandler(err error) {
+func persistHandler(err error) {
   if err != nil {
     log.Error("PersistErr:", err)
   } else {
@@ -81,17 +78,17 @@ func mqttConnect(host string, port uint16, name string) {
     log.Panic("mqttClient creation ERR:", err)
   }
 
-  mqttClient.HandlePub(PubHandler)
-  mqttClient.HandleSub(SubHandler)
-  mqttClient.HandleUnSub(UnSubHandler)
+  mqttClient.HandlePub(pubHandler)
+  mqttClient.HandleSub(subHandler)
+  mqttClient.HandleUnSub(unSubHandler)
   // register handler for net error (optional, but recommended)
-  mqttClient.HandleNet(NetHandler)
+  mqttClient.HandleNet(netHandler)
   // register handler for persist error (optional, but recommended)
-  mqttClient.HandlePersist(PersistHandler)
-  // define your topic handlers like a golang http server
-//  mqttClient.Handle("foo", func(topic string, qos libmqtt.QosLevel, msg []byte) {
-    // handle the topic message
-//  })
+  mqttClient.HandlePersist(persistHandler)
+  mqttClient.Handle(".*",
+    func(topic string, qos libmqtt.QosLevel, msg []byte) {
+      espMessageHandler(topic, msg)
+  })
   // connect to server
   mqttClient.Connect(func(server string, code byte, err error) {
     if err != nil {

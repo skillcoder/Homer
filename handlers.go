@@ -1,15 +1,16 @@
 package main
+/* vim: set ts=2 sw=2 sts=2 et: */
 
 import (
-	"fmt"
+  "fmt"
 
-    "github.com/skillcoder/homer/version"
-	"github.com/takama/router"
+  "github.com/takama/router"
 )
 
 // home returns the path of current request
 func home(c *router.Control) {
-	fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s, Build: %s", version.REPO, version.COMMIT, version.RELEASE, version.BUILD)
+	fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s, Build: %s",
+    versionREPO, versionCOMMIT, versionRELEASE, versionBUILD)
 }
 
 // logger provides a log of requests

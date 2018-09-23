@@ -1,18 +1,19 @@
-/* vim: set ts=2 sw=2 sts=2 et: */
 package main
+/* vim: set ts=2 sw=2 sts=2 et: */
 
 import (
   "strings"
   "fmt"
-  "github.com/kshvakov/clickhouse"
   "database/sql"
+
+  "github.com/kshvakov/clickhouse"
 )
 
 // need update by request DDL from clickhouse for table values
-var clickhouse_count_of_columns int8 = 10;
-var clickhouse_db *sql.DB
+var clickhouseCountOfColumns int8 = 10;
+var clickhouseDb *sql.DB
 
-func clickhouse_connect() {
+func clickhouseConnect() {
   dburl := fmt.Sprintf("tcp://%s:%d?username=%s&password=%s&database=%s&read_timeout=10&write_timeout=20&debug=true",
     config.ClickHouse.Host,
     config.ClickHouse.Port,
@@ -21,18 +22,18 @@ func clickhouse_connect() {
     config.ClickHouse.Name,
   )
   var err error
-  clickhouse_db, err = sql.Open("clickhouse", dburl)
+  clickhouseDb, err = sql.Open("clickhouse", dburl)
 	if err != nil {
 		log.Fatal(err)
 	}
-  //defer clickhouse_db.Close()
+  //defer clickhouseDb.Close()
 
-  // TODO update clickhouse_count_of_columns
-  clickhouse_count_of_columns = 6
+  // TODO update clickhouseCountOfColumns
+  clickhouseCountOfColumns = 6
 }
 
-func ch_metric_insert(timestamp int64, row map[string]float64) {
-  if err := clickhouse_db.Ping(); err != nil {
+func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
+  if err := clickhouseDb.Ping(); err != nil {
 		if exception, ok := err.(*clickhouse.Exception); ok {
 			fmt.Printf("[%d] %s \n%s\n", exception.Code, exception.Message, exception.StackTrace)
 		} else {
@@ -42,8 +43,8 @@ func ch_metric_insert(timestamp int64, row map[string]float64) {
 	}
 
   // result
-  sql_fields := make([]string, 0, clickhouse_count_of_columns+1)
-  sql_names  := make([]string, 0, clickhouse_count_of_columns+1)
+  sqlFields := make([]string, 0, clickhouseCountOfColumns+1)
+  sqlNames  := make([]string, 0, clickhouseCountOfColumns+1)
   vals := []interface{}{timestamp}
 
   for key, val := range row {
@@ -51,22 +52,36 @@ func ch_metric_insert(timestamp int64, row map[string]float64) {
     // if not - create it by ALTER TABLE values ADD key float8
     log.Debugf("ROW [%s] %.3f", key, val)
     //create insert here like this
-    sql_fields = append(sql_fields, fmt.Sprintf("`%s`", key))
-    sql_names = append(sql_names, "?")
+    sqlFields = append(sqlFields, fmt.Sprintf("`%s`", key))
+    sqlNames = append(sqlNames, "?")
     vals = append(vals, val)
   }
 
-  if len(sql_names) > 0 {
-    //year, month, day := now.Date()
-    //weekday := now.Weekday()
-    //if weekday == 0 { weekday = 7 }
-    //log.Debug(fmt.Sprintf("INSERT INTO `values` SET `ctime` = %d, `year` = %d, `month` = %d, `day` = %d, `weekday` = %d, `hour` = %d, `minute` = %d, %s", timestamp, year, month, day, weekday, now.Hour(), now.Minute(), strings.Join(sql, ", ")))
+  if len(sqlNames) > 0 {
+    /*
+    year, month, day := now.Date()
+    weekday := now.Weekday()
+    if weekday == 0 { weekday = 7 }
+    log.Debug(fmt.Sprintf("""
+      INSERT INTO `values` SET 
+        `ctime` = %d,
+        `year` = %d,
+        `month` = %d,
+        `day` = %d,
+        `weekday` = %d,
+        `hour` = %d,
+        `minute` = %d,
+        %s""",timestamp, year, month, day, weekday, now.Hour(), now.Minute(), strings.Join(sql, ", ")))
+    */
 
     var (
-      str_sql = "INSERT INTO `metrics` (`ctime`, "+strings.Join(sql_fields, ", ")+") VALUES (?,"+strings.Join(sql_names, ",")+")"
-      tx, _ = clickhouse_db.Begin()
-      stmt, _ = tx.Prepare(str_sql)
+      strSQL = "INSERT INTO `metrics`"+
+        " (`ctime`, "+strings.Join(sqlFields, ", ")+")"+
+        " VALUES (?,"+strings.Join(sqlNames, ",")+")"
+      tx, _ = clickhouseDb.Begin()
+      stmt, _ = tx.Prepare(strSQL)
     )
+    //defer tx.Rollback()
     defer stmt.Close()
     if _, err := stmt.Exec(vals...); err != nil {
       log.Fatal(err)

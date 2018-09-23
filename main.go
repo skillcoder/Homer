@@ -1,5 +1,5 @@
-/* vim: set ts=2 sw=2 sts=2 et: */
 package main
+/* vim: set ts=2 sw=2 sts=2 et ff=unix: */
 
 import (
   "net/http"
@@ -9,9 +9,9 @@ import (
 //  "time"
 //  "sync"
   _ "net/http/pprof"
+
   "github.com/sirupsen/logrus"
   "github.com/takama/router"
-  "github.com/skillcoder/homer/version"
   "github.com/skillcoder/homer/shutdown"
   infoHandler "github.com/skillcoder/go-common-handlers/info"
 )
@@ -24,10 +24,10 @@ func init() {
 
 func main() {
   //log.Out = os.Stdout
-  fmt.Printf("Homer v%s [%s]\n", version.RELEASE, version.BUILD)
-  fmt.Printf("WWW: %s (%s)\n\n", version.REPO, version.COMMIT)
+  fmt.Printf("Homer v%s [%s]\n", versionRELEASE, versionBUILD)
+  fmt.Printf("WWW: %s (%s)\n\n", versionREPO, versionCOMMIT)
 
-  config_load()
+  configLoad()
 
   fmt.Printf("Switch HOMER_MODE to %s\n", config.Mode)
   if config.Mode == "production" {
@@ -55,7 +55,7 @@ func main() {
   r.GET("/", home)
 
   // Readiness and liveness probes for Kubernetes
-  r.GET("/info", infoHandler.Handler(version.RELEASE, version.REPO, version.COMMIT, version.BUILD))
+  r.GET("/info", infoHandler.Handler(versionRELEASE, versionREPO, versionCOMMIT, versionBUILD))
   r.GET("/health", func(c *router.Control) {
     c.Code(http.StatusOK).Body(http.StatusText(http.StatusOK))
   })
@@ -68,9 +68,9 @@ func main() {
     }()
   }
 
-  clickhouse_connect()
+  clickhouseConnect()
 
-  go dbLoop(5000)
+  go dbLoop(config.AggregatePeriod)
 
   logger := log.WithField("event", "shutdown")
   sdHandler := shutdown.NewHandler(logger)

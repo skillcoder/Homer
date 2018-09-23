@@ -13,22 +13,32 @@ git clone https://github.com/skillcoder/homer.git
 ```
 sudo pkg install go
 sudo pkg install go-glide
+cd ~/go/src/github.com/skillcoder/homer
+glide update
+export GOOS=freebsd
+gmake build
 ```
 #### Amazon Linux 2 (AWS)
 install go
 ```
 sudo yum install glide
+cd ~/go/src/github.com/skillcoder/homer
+glide update
+export GOOS=linux
+make build
 ```
 #### Ubuntu 18.04
 ```
 sudo apt install golang-go
 sudo apt install golang-glide
-```
-#### build
-```
 cd ~/go/src/github.com/skillcoder/homer
 glide update
-go build -race -ldflags "-X github.com/skillcoder/homer/version.BUILD=`date -u '+%Y-%m-%d_%H:%M:%S%p'` -X github.com/skillcoder/homer/version.COMMIT=`git rev-parse HEAD` -X github.com/skillcoder/homer/version.RELEASE=`cat VERSION`"
+export GOOS=linux
+make build
+```
+#### manual build
+```
+go build -race -ldflags "-X main.versionBUILD=`date -u '+%Y-%m-%d_%H:%M:%S%p'` -X main.versionCOMMIT=`git rev-parse --short HEAD` -X main.versionRELEASE=`cat VERSION`" 
 ```
 
 ### CONFIG
@@ -46,9 +56,7 @@ clickhouse-client -h 127.0.0.1 -u homer --password=*secter* --database=homer < d
 ```
 
 ### RUN
-```
-./homer
-```
+`./homer` or `bin/linux/homer` or `bin/freebsd/homer`  
 You can change config setting by enveroment variables, see in config.yml.sample  
 
 Example, run second instance:  
