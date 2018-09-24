@@ -1,6 +1,8 @@
 package main
 
-// Rewrite by -ldflags 
+/* vim: set ts=2 sw=2 sts=2 ff=unix ft=go noet: */
+
+// Rewrite by -ldflags
 // see how to use: https://github.com/golang/go/wiki/GcToolchainTricks
 // or in Makefile
 var (

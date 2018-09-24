@@ -1,6 +1,6 @@
 package main
 
-/* vim: set ts=2 sw=2 sts=2 ff=unix noexpandtab: */
+/* vim: set ts=2 sw=2 sts=2 ff=unix ft=go noet: */
 
 import (
 	"runtime"
