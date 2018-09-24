@@ -80,7 +80,7 @@ func dbAddEvent(fieldName string, fieldType string, valueInterface uint64, time 
 func dbStore(item dbItemT) {
   //value := reflect.ValueOf(item.ColVal)
   //valueType := value.Type()
-  log.Debugf("DB [%s:%s] <%T>=%v", item.ColName, item.ColType, item.ColVal, item.ColVal)
+  log.Debugf("DB [%d] %s:%s = %v", item.Time, item.ColName, item.ColType, item.ColVal)
   database.Add(item.Time, item)
 }
 

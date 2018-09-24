@@ -2,10 +2,11 @@ package main
 /* vim: set ts=2 sw=2 sts=2 et: */
 
 import (
-	"strings"
+  "strings"
   "time"
+  "fmt"
   "strconv"
-	"encoding/json"
+  "encoding/json"
 )
 
 type espConnectedPacket struct {
@@ -42,9 +43,33 @@ type espStatusPacket struct{
 
 var espKnownNodes = make(map[string]bool)
 
+func espInitHandler(payload []byte) {
+  packet := espConnectedPacket{}
+  if err := json.Unmarshal(payload, &packet); err != nil {
+    log.Error("INIT json.Unmarshal:", err)
+  }
+
+  verbosePrint("init "+packet.Name)
+  n, ok := espKnownNodes[packet.Name]
+  if (!n || !ok) {
+    espNodeSubscribe(packet.Name)
+  }
+}
+
+func espStatHandler(payload []byte, espName string) {
+  packet := espStatusPacket{}
+  if err := json.Unmarshal(payload, &packet); err != nil {
+    log.Errorf("STAT [%s] json.Unmarshal: %v", espName, err)
+  }
+
+  log.Infof("(%s) status [%d]: %s R:%d free:%d vcc:%.2f uptime:%d",
+    espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
+}
+
+
 func espMessageHandler(topic string, payload []byte) {
     messageTime := time.Now()
-    log.Debugf("TOPIC: %s", topic)
+    verbosePrint("TOPIC: "+topic)
     s := strings.Split(topic, "/")
     var espName string
     var espTheme string
@@ -58,45 +83,26 @@ func espMessageHandler(topic string, payload []byte) {
             espTag = s[4]
         }
     } else {
+        log.Warnf("Unknown prefix in topic: %s", topic)
         return;
     }
 
-    if (espName == "init" || espTheme == "stat") {
-        if !json.Valid(payload) {
-            log.Warnf("MSG: %s", payload)
-            return
-        }
+    if espName == "init" {
+      if json.Valid(payload) {
+        espInitHandler(payload)
+      } else {
+        log.Warnf("INIT invalid json: %v", payload)
+        return
+      }
 
-        var dat map[string]interface{}
-        if err := json.Unmarshal(payload, &dat); err != nil {
-            panic(err)
-        }
-        //fmt.Println(dat)
+    } else if espTheme == "stat" {
+      if json.Valid(payload) {
+        espStatHandler(payload, espName)
+      } else {
+        log.Warnf("STAT invalid json: %v", payload)
+        return
+      }
 
-        opcode := dat["act"].(string)
-        switch opcode {
-        case "connected":
-            packet := espConnectedPacket{}
-            json.Unmarshal(payload, &packet)
-            log.Debugf("[%s]", packet.Name)
-            n, ok := espKnownNodes[packet.Name]
-            //fmt.Printf("[%v] [%v]\n", n, ok)
-            if (!n || !ok) {
-                espNodeSubscribe(packet.Name)
-            }
-        case "status":
-            packet := espStatusPacket{}
-            json.Unmarshal(payload, &packet)
-            log.Infof("(%s) status [%d]: %s R:%d free:%d vcc:%.2f uptime:%d",
-              espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime);
-            /*
-        case "channels":
-            packet := espChannelsPacket{}
-            json.Unmarshal(payload, &packet)
-            */
-        default:
-            log.Warnf("Unimplemented opcode: %s", payload)
-        }
     } else {
       payloadStr := string(payload[:])
       var espRoom = espName;
@@ -105,7 +111,7 @@ func espMessageHandler(topic string, payload []byte) {
       }
 
       var timestamp = messageTime.Unix()
-      log.Debugf("[%d] %s %s %s", timestamp, espRoom, espTheme, payloadStr)
+      verbosePrint(fmt.Sprintf("[%d] %s %s %s", timestamp, espRoom, espTheme, payloadStr))
 
       switch espTheme {
         case "count", "move", "led", "temp", "humd", "pres":

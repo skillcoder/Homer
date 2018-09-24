@@ -9,8 +9,10 @@ import (
 
 // home returns the path of current request
 func home(c *router.Control) {
-	fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s, Build: %s",
-    versionREPO, versionCOMMIT, versionRELEASE, versionBUILD)
+	if _, err := fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s, Build: %s",
+    versionREPO, versionCOMMIT, versionRELEASE, versionBUILD); err != nil {
+    log.Error("Cant write [home]:", err)
+  }
 }
 
 // logger provides a log of requests
@@ -19,5 +21,6 @@ func logger(c *router.Control) {
 	if remoteAddr == "" {
 		remoteAddr = c.Request.RemoteAddr
 	}
+
 	log.Infof("%s %s %s", remoteAddr, c.Request.Method, c.Request.URL.Path)
 }

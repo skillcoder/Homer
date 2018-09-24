@@ -82,7 +82,7 @@ func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
       stmt, _ = tx.Prepare(strSQL)
     )
     //defer tx.Rollback()
-    defer stmt.Close()
+    defer checkDefer(stmt.Close())
     if _, err := stmt.Exec(vals...); err != nil {
       log.Fatal(err)
     }

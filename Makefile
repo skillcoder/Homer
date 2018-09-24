@@ -23,6 +23,10 @@ clean:
 vendor: prepare_glide
 	glide update
 
+.PHONY: fmt
+fmt:
+	go fmt *.go
+
 HAS_DEP := $(shell command -v dep;)
 HAS_GLIDE := $(shell command -v dep;)
 HAS_METALINTER := $(shell command -v gometalinter;)

@@ -59,7 +59,7 @@ func persistHandler(err error) {
   }
 }
 
-func mqttConnect(host string, port uint16, name string) {
+func mqttConnect(host string, port uint16, name, user, pass string) {
   mqtturi := fmt.Sprintf("%s:%d", host, port)
   var err error
   mqttClient, err = libmqtt.NewClient(
@@ -67,7 +67,7 @@ func mqttConnect(host string, port uint16, name string) {
     libmqtt.WithBuf(512, 512), // send, recv
     libmqtt.WithClientID(name),
     libmqtt.WithDialTimeout(2), // Connection timeout
-    //libmqtt.WithIdentity(username, password),
+    libmqtt.WithIdentity(user, pass),
 //    libmqtt.WithKeepalive(30, 1),
     libmqtt.WithLog(libmqtt.Info), // Silent/Verbose/Debug/Info/Warning/Error
     libmqtt.WithRouter(libmqtt.NewRegexRouter()),

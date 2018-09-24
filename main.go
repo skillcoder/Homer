@@ -29,9 +29,26 @@ func check(e error) {
 	}
 }
 
+func checkDefer(err error) {
+  if err != nil {
+		log.Error(err)
+	}
+}
+
+/*
+func checkFunc(f func() error) {
+	if err := f(); err != nil {
+		fmt.Println("Error while defer:", err)
+	}
+}
+*/
+
 func failWith(msg string) {
 	log.Fatal(msg)
-  fmt.Fprintln(os.Stderr, msg)
+  if _, err := fmt.Fprintln(os.Stderr, msg); err != nil {
+		log.Error(err)
+	}
+
 	os.Exit(1)
 }
 
@@ -67,7 +84,7 @@ func main() {
   }).Warn("Inited")
   */
 
-  mqttConnect(config.Mqtt.Host, config.Mqtt.Port, config.Mqtt.Name)
+  mqttConnect(config.Mqtt.Host, config.Mqtt.Port, config.Mqtt.Name, config.Mqtt.User, config.Mqtt.Pass)
 
   r := router.New()
   r.Logger = logger
