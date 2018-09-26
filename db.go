@@ -48,7 +48,7 @@ func (c *dbT) Load(key int64) ([]dbItemT, bool) {
 func (c *dbT) Add(key int64, item dbItemT) {
 	column, ok := c.Load(key)
 	if !ok {
-		column = make([]dbItemT, 0, clickhouseCountOfColumns+1)
+		column = make([]dbItemT, 0, clickhouseMetricCount+1)
 	}
 
 	column = append(column, item)

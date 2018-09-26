@@ -30,13 +30,13 @@ func check(e error) {
 	}
 }
 
+/*
 func checkDefer(err error) {
 	if err != nil {
 		log.Error(err)
 	}
 }
 
-/*
 func checkFunc(f func() error) {
 	if err := f(); err != nil {
 		fmt.Println("Error while defer:", err)

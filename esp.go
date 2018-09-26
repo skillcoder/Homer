@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,10 +45,17 @@ type espStatusPacket struct {
 
 var espKnownNodes = make(map[string]bool)
 
-func espInitHandler(payload []byte) {
+func espHandleInit(payload []byte) {
+	if !json.Valid(payload) {
+		errStr := fmt.Sprintf("INIT invalid json: %v", payload)
+		log.Warn(errStr)
+		return
+	}
+
 	packet := espConnectedPacket{}
 	if err := json.Unmarshal(payload, &packet); err != nil {
 		log.Error("INIT json.Unmarshal:", err)
+		return
 	}
 
 	verbosePrint("init " + packet.Name)
@@ -57,51 +65,81 @@ func espInitHandler(payload []byte) {
 	}
 }
 
-func espStatHandler(payload []byte, espName string) {
+func espHandleStat(payload []byte, espName string) {
+	if !json.Valid(payload) {
+		errStr := fmt.Sprintf("STAT invalid json: %v", payload)
+		log.Warn(errStr)
+		return
+	}
+
 	packet := espStatusPacket{}
 	if err := json.Unmarshal(payload, &packet); err != nil {
 		log.Errorf("STAT [%s] json.Unmarshal: %v", espName, err)
+		return
 	}
 
 	log.Infof("(%s) status [%d]: %s R:%d free:%d vcc:%.2f uptime:%d",
 		espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime)
 }
 
-func espMessageHandler(topic string, payload []byte) {
-	messageTime := time.Now()
-	verbosePrint("TOPIC: " + topic)
+func espHandleEvent(espRoom, espTheme, payloadStr string, timestamp int64) {
+	value, err := strconv.ParseUint(payloadStr, 10, 64)
+	if err != nil {
+		// handle error
+		log.Errorf("[%d] %s %s %s convert to int: %s", timestamp, espRoom, espTheme, payloadStr, err)
+		return
+	}
+
+	if value > 1000000000 {
+		timestamp = int64(value)
+	}
+
+	dbAddEvent(espRoom, espTheme, value, timestamp)
+}
+
+func espHandleMetric(espRoom, espTheme, payloadStr string, timestamp int64) {
+	value, err := strconv.ParseFloat(payloadStr, 64)
+	if err != nil {
+		// handle error
+		log.Errorf("[%d] %s %s %s convert to float: %s", timestamp, espRoom, espTheme, payloadStr, err)
+		return
+	}
+
+	dbAddMetric(espRoom, espTheme, value, timestamp)
+}
+
+func parseTopic(topic string) (espName, espTheme, espTag string, err error) {
 	s := strings.Split(topic, "/")
-	var espName string
-	var espTheme string
-	var espTag string
 	if s[1] == "esp" {
 		espName = s[2]
 		if len(s) > 3 {
 			espTheme = s[3]
 		}
+
 		if len(s) > 4 {
 			espTag = s[4]
 		}
 	} else {
-		log.Warnf("Unknown prefix in topic: %s", topic)
+		return "", "", "", errors.New("Unknown prefix in topic: " + topic)
+	}
+
+	return espName, espTheme, espTag, nil
+}
+
+func espMessageHandler(topic string, payload []byte) {
+	messageTime := time.Now()
+	verbosePrint("TOPIC: " + topic)
+	espName, espTheme, espTag, err := parseTopic(topic)
+	if err != nil {
+		log.Warn(err)
 		return
 	}
 
 	if espName == "init" {
-		if json.Valid(payload) {
-			espInitHandler(payload)
-		} else {
-			log.Warnf("INIT invalid json: %v", payload)
-			return
-		}
+		espHandleInit(payload)
 
 	} else if espTheme == "stat" {
-		if json.Valid(payload) {
-			espStatHandler(payload, espName)
-		} else {
-			log.Warnf("STAT invalid json: %v", payload)
-			return
-		}
+		espHandleStat(payload, espName)
 
 	} else {
 		payloadStr := string(payload[:])
@@ -114,54 +152,16 @@ func espMessageHandler(topic string, payload []byte) {
 		verbosePrint(fmt.Sprintf("[%d] %s %s %s", timestamp, espRoom, espTheme, payloadStr))
 
 		switch espTheme {
-		case "count", "move", "led", "temp", "humd", "pres":
-			// int8
-			if espTheme == "count" || espTheme == "move" || espTheme == "led" {
-				value, err := strconv.ParseUint(payloadStr, 10, 64)
-				if err != nil {
-					// handle error
-					log.Errorf("[%d] %s %s %s convert to int: %s", timestamp, espRoom, espTheme, payloadStr, err)
-					return
-				}
+		// int
+		case "count", "move", "led":
+			espHandleEvent(espRoom, espTheme, payloadStr, timestamp)
+		// float
+		case "temp", "humd", "pres":
+			espHandleMetric(espRoom, espTheme, payloadStr, timestamp)
 
-				if value > 1000000000 {
-					timestamp = int64(value)
-				}
-
-				dbAddEvent(espRoom, espTheme, value, timestamp)
-				// float
-			} else if espTheme == "temp" || espTheme == "humd" || espTheme == "pres" {
-				value, err := strconv.ParseFloat(payloadStr, 64)
-				if err != nil {
-					// handle error
-					log.Errorf("[%d] %s %s %s convert to float: %s", timestamp, espRoom, espTheme, payloadStr, err)
-					return
-				}
-
-				dbAddMetric(espRoom, espTheme, value, timestamp)
-				// string
-			} else {
-				//dbAdd(espRoom, espTheme, payloadStr, timestamp)
-				log.Errorf("Unknown Theme type: %s", espTheme)
-			}
-			/*
-			   switch espTheme {
-			   // Counter (unix_timestamp of click)
-			   case "count":
-			   // Movement detector (unix_timestamp/0) 0 = end detection
-			   case "move":
-			   // Switch
-			   case "led":
-			   // Temperature
-			   case "temp":
-			   // Humidity
-			   case "humd":
-			   // Pressure
-			   case "pres":
-			   }
-			*/
 		case "debug":
-			//log.Debugf("Debug")
+			log.Debugf("Debug")
+
 		default:
 			log.Warnf("Unknown topic Theme (%s) [%u] %s %s %s %u,"+
 				" we ignore it (but devs must fix this by adding esp handler for it)",
