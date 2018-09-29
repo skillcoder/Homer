@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -82,32 +81,6 @@ func espHandleStat(payload []byte, espName string) {
 		espName, packet.Time, packet.Ap, packet.Rssi, packet.Free, packet.Vcc, packet.Uptime)
 }
 
-func espHandleEvent(espRoom, espTheme, payloadStr string, timestamp int64) {
-	value, err := strconv.ParseUint(payloadStr, 10, 64)
-	if err != nil {
-		// handle error
-		log.Errorf("[%d] %s %s %s convert to int: %s", timestamp, espRoom, espTheme, payloadStr, err)
-		return
-	}
-
-	if value > 1000000000 {
-		timestamp = int64(value)
-	}
-
-	dbAddEvent(espRoom, espTheme, value, timestamp)
-}
-
-func espHandleMetric(espRoom, espTheme, payloadStr string, timestamp int64) {
-	value, err := strconv.ParseFloat(payloadStr, 64)
-	if err != nil {
-		// handle error
-		log.Errorf("[%d] %s %s %s convert to float: %s", timestamp, espRoom, espTheme, payloadStr, err)
-		return
-	}
-
-	dbAddMetric(espRoom, espTheme, value, timestamp)
-}
-
 func parseTopic(topic string) (espName, espTheme, espTag string, err error) {
 	s := strings.Split(topic, "/")
 	if s[1] == "esp" {
@@ -153,11 +126,8 @@ func espMessageHandler(topic string, payload []byte) {
 
 		switch espTheme {
 		// int
-		case "count", "move", "led":
-			espHandleEvent(espRoom, espTheme, payloadStr, timestamp)
-		// float
-		case "temp", "humd", "pres":
-			espHandleMetric(espRoom, espTheme, payloadStr, timestamp)
+		case "count", "move", "led", "temp", "humd", "pres":
+			dbInsert(espRoom, espTheme, payloadStr, timestamp)
 
 		case "debug":
 			log.Debugf("Debug")

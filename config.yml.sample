@@ -35,3 +35,7 @@ clickhouse:
     pass: '*secret*'
     # HOMER_CLICKHOUSE_NAME - database name
     name: 'homer'
+
+counters:
+    water-c: ['water-c']
+    water-h: ['water-h']

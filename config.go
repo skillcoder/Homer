@@ -31,9 +31,14 @@ type configT struct {
 		Pass string `yaml:"pass"`
 		Name string `yaml:"name"`
 	}
+	Counters struct {
+		WaterC []string `yaml:"water-c"`
+		WaterH []string `yaml:"water-h"`
+	}
 }
 
 var config = configT{}
+var configCounters = make(map[string]uint8)
 
 // TODO: switch to github.com/spf13/viper
 func configLoad() {
@@ -93,6 +98,15 @@ func configLoad() {
 	check(err)
 
 	configPrintSummary()
+
+	//make optimize varibles
+	for _, v := range config.Counters.WaterC {
+		configCounters[v] = 1 // water cold
+	}
+
+	for _, v := range config.Counters.WaterH {
+		configCounters[v] = 2 // water hot
+	}
 }
 
 func logConfigItem(key string, rawValue interface{}) {
