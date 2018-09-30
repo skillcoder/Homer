@@ -68,7 +68,7 @@ func (c *dbT) AddClick(key uint8, time int64) {
 	c.clicks[key] = click
 }
 
-func (c *dbT) popMetricsFrom(from int64) (rows map[string][]float64) {
+func (c *dbT) popMetricsFrom(from, to int64) (rows map[string][]float64) {
 	keys := make([]int64, 0, len(c.m))
 	for k := range c.m {
 		keys = append(keys, k)
@@ -77,23 +77,24 @@ func (c *dbT) popMetricsFrom(from int64) (rows map[string][]float64) {
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	rows = make(map[string][]float64)
 	for _, key := range keys {
+		if key < to {
+			if key >= from {
+				//log.Debugf("key [%d] %v", key, item);
+				for _, item := range c.m[key] {
+					rowKey := item.ColName + ":" + item.ColType
+					value, err := strconv.ParseFloat(item.ColVal, 64)
+					if err != nil {
+						log.Errorf("[%d] %s %s %s convert to float: %s", item.Time, item.ColName, item.ColType, item.ColVal, err)
+						continue
+					}
 
-		if key >= from {
-			//log.Debugf("key [%d] %v", key, item);
-			for _, item := range c.m[key] {
-				rowKey := item.ColName + ":" + item.ColType
-				value, err := strconv.ParseFloat(item.ColVal, 64)
-				if err != nil {
-					log.Errorf("[%d] %s %s %s convert to float: %s", item.Time, item.ColName, item.ColType, item.ColVal, err)
-					continue
+					rows[rowKey] = append(rows[rowKey], value)
 				}
-
-				rows[rowKey] = append(rows[rowKey], value)
+				delete(c.m, key)
+			} else {
+				// FIXME need send it too (its late data)
+				log.Warnf("key [%d] %v", key, c.m[key])
 			}
-			delete(c.m, key)
-		} else {
-			// FIXME need send it too (its late data)
-			log.Warnf("key [%d] %v", key, c.m[key])
 		}
 	}
 
@@ -155,11 +156,23 @@ func dbStore(item dbItemT) {
 	}
 }
 
-func dbSaveMetrics() {
+func getNearestTimestamp(timestamp int64, secPeriod uint16) (ts int64) {
+	ts = timestamp
+	for {
+		if ts%int64(secPeriod) == 0 {
+			return ts
+		}
+		ts--
+	}
+}
+
+func dbSaveMetrics(ms uint32) {
 	now := time.Now()
+	var secPeriod = uint16(ms / 1000)
 	var timestamp = now.Unix()
-	from := timestamp - 5
-	rows := database.popMetricsFrom(from)
+	var to = getNearestTimestamp(timestamp, secPeriod)
+	var from = to - int64(secPeriod)
+	rows := database.popMetricsFrom(from, to)
 
 	row := make(map[string]float64)    // Result
 	nowrow := make(map[string]float64) //next old row
@@ -208,14 +221,14 @@ func dbLoop(ms uint32) {
 			dbStore(item)
 		case <-ticker.C:
 			log.Debug("Make clickhouse row")
-			dbSaveMetrics()
-		case <-ticker.C:
+			dbSaveMetrics(ms)
+		case <-tickerCounter.C:
 			log.Debug("Make counter row")
 			dbProcessEvents()
 		case <-dbShutdownChan:
 			log.Debug("DB shuting down")
 			// TODO make it in gorutines/parallel
-			dbSaveMetrics()
+			dbSaveMetrics(ms)
 			dbProcessEvents()
 			return
 		}
