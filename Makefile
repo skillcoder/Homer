@@ -26,6 +26,9 @@ vendor: prepare_glide
 .PHONY: fmt
 fmt:
 	go fmt *.go
+	go fmt shutdown/*.go
+	go fmt stat/*.go
+	go fmt database/*.go
 
 HAS_DEP := $(shell command -v dep;)
 HAS_GLIDE := $(shell command -v dep;)

@@ -13,7 +13,7 @@ import (
 )
 
 // need update by request DDL from clickhouse for table values
-var clickhouseMetricCount uint8 = 12
+var clickhouseMetricCount = 12
 var clickhouseMetrics = make(map[string]struct{})
 var clickhouseDb *sql.DB
 var clickhouseCtx = context.Background()
@@ -27,7 +27,7 @@ func clickhouseCheckFieldName(name string) (result bool) {
 func clickhouseAddMetric(fieldName, fieldType string) {
 	if fieldType == "Nullable(Float32)" {
 		clickhouseMetrics[fieldName] = struct{}{}
-		clickhouseMetricCount = uint8(len(clickhouseMetrics))
+		clickhouseMetricCount = len(clickhouseMetrics)
 		log.Info("Metric init ", fieldName)
 	} else {
 		verbosePrint("Ignore [" + fieldName + "] cuz fieldType = " + fieldType)

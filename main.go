@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	infoHandler "github.com/skillcoder/go-common-handlers/info"
 	"github.com/skillcoder/homer/shutdown"
+	statHandler "github.com/skillcoder/homer/stat"
 	"github.com/takama/router"
 )
 
@@ -88,11 +89,12 @@ func main() {
 	mqttConnect(config.Mqtt.Host, config.Mqtt.Port, config.Mqtt.Name, config.Mqtt.User, config.Mqtt.Pass)
 
 	r := router.New()
-	r.Logger = logger
-	r.GET("/", home)
+	r.Logger = handlersLogger
+	r.GET("/", handlersHome)
 
 	// Readiness and liveness probes for Kubernetes
 	r.GET("/info", infoHandler.Handler(versionRELEASE, versionREPO, versionCOMMIT, versionBUILD))
+	r.GET("/stat", statHandler.Handler(dbGetStatHandler))
 	r.GET("/health", func(c *router.Control) {
 		c.Code(http.StatusOK).Body(http.StatusText(http.StatusOK))
 	})
@@ -106,9 +108,13 @@ func main() {
 	}
 
 	clickhouseConnect()
+	dbInit()
 
 	go dbLoop(config.AggregatePeriod)
 
+	logrus.RegisterExitHandler(func() {
+		// gracefully shutdown something...
+	})
 	logger := log.WithField("event", "shutdown")
 	sdHandler := shutdown.NewHandler(logger)
 	sdHandler.RegisterShutdown(sd)

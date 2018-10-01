@@ -9,7 +9,7 @@ import (
 )
 
 // home returns the path of current request
-func home(c *router.Control) {
+func handlersHome(c *router.Control) {
 	if _, err := fmt.Fprintf(c.Writer, "Repo: %s, Commit: %s, Version: %s, Build: %s",
 		versionREPO, versionCOMMIT, versionRELEASE, versionBUILD); err != nil {
 		log.Error("Cant write [home]:", err)
@@ -17,7 +17,7 @@ func home(c *router.Control) {
 }
 
 // logger provides a log of requests
-func logger(c *router.Control) {
+func handlersLogger(c *router.Control) {
 	remoteAddr := c.Request.Header.Get("X-Forwarded-For")
 	if remoteAddr == "" {
 		remoteAddr = c.Request.RemoteAddr
