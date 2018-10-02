@@ -29,6 +29,7 @@ fmt:
 	go fmt shutdown/*.go
 	go fmt stat/*.go
 	go fmt database/*.go
+	go fmt helper/*.go
 
 HAS_DEP := $(shell command -v dep;)
 HAS_GLIDE := $(shell command -v dep;)

@@ -11,3 +11,5 @@ See in [CONTRIBUTE.md](CONTRIBUTE.md)
 
 ### HTTP Request
 `curl http://127.0.0.1:18266/info`
+`curl http://127.0.0.1:18266/stat`
+`curl http://127.0.0.1:18266/health`

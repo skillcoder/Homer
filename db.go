@@ -10,6 +10,7 @@ import (
 
 	"github.com/montanaflynn/stats"
 	"github.com/skillcoder/homer/database"
+	"github.com/skillcoder/homer/helper"
 )
 
 var dbQueue *database.DbQueueT
@@ -69,24 +70,17 @@ func dbStore(item database.DbItemT) {
 	}
 }
 
-func getNearestTimestamp(timestamp int64, secPeriod uint16) (ts int64) {
-	ts = timestamp
-	for {
-		if ts%int64(secPeriod) == 0 {
-			return ts
-		}
-		ts--
-	}
-}
+func dbSaveMetrics(ms int) {
+	var timestamp = time.Now().Unix()
+	var secPeriod = ms / 1000
 
-func dbSaveMetrics(ms uint32) {
-	now := time.Now()
-	var secPeriod = uint16(ms / 1000)
-	var timestamp = now.Unix()
-
-	timestamp = getNearestTimestamp(timestamp, secPeriod)
+	timestamp = helper.GetPrevTimestamp(timestamp, secPeriod)
 	var from = timestamp - int64(secPeriod)
-	rows := dbHomer.PopMetricsFrom(from, timestamp)
+	rows, isHaveOlder := dbHomer.PopMetricsFrom(from, timestamp)
+	if isHaveOlder {
+		// FIXME need send it too (its late data)
+		log.Warn("We have older metrics in database, need implement send it too")
+	}
 
 	row := make(map[string]float64)    // Result
 	nowrow := make(map[string]float64) //next old row
@@ -116,24 +110,24 @@ func dbSaveMetrics(ms uint32) {
 	go clickhouseMetricInsert(timestamp, row)
 }
 
-func dbProcessEvents() {
-	// TODO
-	// get current time in HH:mm
-	// create consumption speed stats
-	// save to db
+func dbSaveClicks() {
+	var timestamp = time.Now().Unix()
+	var secPeriod = 60
+	timestamp = helper.GetPrevTimestamp(timestamp, secPeriod)
+	var from = timestamp - int64(secPeriod)
+	rows, isHaveOlder := dbHomer.PopClicksFrom(from, timestamp)
+	if isHaveOlder {
+		// FIXME need send it too (its late data)
+		log.Warn("We have older clicks in database, need implement send it too")
+	}
 
-}
-
-func getNextMinute() (nextMinute int64) {
-	now := time.Now()
-	ts := now.Unix()
-	prev := ts - (ts % 60)
-	nextMinute = prev + 60
-	return nextMinute
+	for counterID, count := range rows {
+		log.Warnf("[%d] %1d => %d", time.Unix(timestamp, 0).Format("15:04:05"), counterID, count)
+	}
 }
 
 // resend accomulated data to clickhouse in one row per sec
-func dbLoop(ms uint32) {
+func dbLoop(ms int) {
 	dbWg.Add(1)
 	defer dbWg.Done()
 	ticker := time.NewTicker(time.Millisecond * time.Duration(ms))
@@ -141,7 +135,7 @@ func dbLoop(ms uint32) {
 	defer ticker.Stop()
 	defer tickerSec.Stop()
 	itemChan := dbQueue.GetChan()
-	var nextMinute = getNextMinute()
+	var nextMinute = helper.GetNextMinute(time.Now().Unix())
 	for {
 		select {
 		case item := <-itemChan:
@@ -150,16 +144,18 @@ func dbLoop(ms uint32) {
 			log.Debug("Make clickhouse row")
 			dbSaveMetrics(ms)
 		case <-tickerSec.C:
-			if time.Now().Unix() >= nextMinute {
-				nextMinute = getNextMinute()
+			var timestamp = time.Now().Unix()
+			if timestamp >= nextMinute {
+				nextMinute = helper.GetNextMinute(timestamp)
 				log.Debug("Make counter row")
-				dbProcessEvents()
+				dbSaveClicks()
 			}
+		//TODO create water consumption speed stats, every sec
 		case <-dbShutdownChan:
 			log.Debug("DB shuting down")
 			// TODO make it in gorutines/parallel
 			dbSaveMetrics(ms)
-			dbProcessEvents()
+			dbSaveClicks()
 			return
 		}
 	}

@@ -110,7 +110,7 @@ func main() {
 	clickhouseConnect()
 	dbInit()
 
-	go dbLoop(config.AggregatePeriod)
+	go dbLoop(int(config.AggregatePeriod))
 
 	logrus.RegisterExitHandler(func() {
 		// gracefully shutdown something...

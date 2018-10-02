@@ -10,30 +10,30 @@ import (
 )
 
 type configT struct {
-	ConfigFile      string `yaml:"config_file"`
-	ConfigDir       string `yaml:"config_dir"`
-	DataDir         string `yaml:"data_dir"`
-	Mode            string `yaml:"mode"`
-	Listen          string `yaml:"listen"`
-	AggregatePeriod uint32 `yaml:"aggregate_period"`
-	Verbose         bool   `yaml:"verbose"`
+	ConfigFile      string `mapstructure:"config_file"`
+	ConfigDir       string `mapstructure:"config_dir"`
+	DataDir         string `mapstructure:"data_dir"`
+	Mode            string `mapstructure:"mode"`
+	Listen          string `mapstructure:"listen"`
+	AggregatePeriod uint32 `mapstructure:"aggregate_period"`
+	Verbose         bool   `mapstructure:"verbose"`
 	Mqtt            struct {
-		Host string `yaml:"host"`
-		Port uint16 `yaml:"port"`
-		User string `yaml:"user"`
-		Pass string `yaml:"pass"`
-		Name string `yaml:"name"`
+		Host string `mapstructure:"host"`
+		Port uint16 `mapstructure:"port"`
+		User string `mapstructure:"user"`
+		Pass string `mapstructure:"pass"`
+		Name string `mapstructure:"name"`
 	}
 	ClickHouse struct {
-		Host string `yaml:"host"`
-		Port uint16 `yaml:"port"`
-		User string `yaml:"user"`
-		Pass string `yaml:"pass"`
-		Name string `yaml:"name"`
+		Host string `mapstructure:"host"`
+		Port uint16 `mapstructure:"port"`
+		User string `mapstructure:"user"`
+		Pass string `mapstructure:"pass"`
+		Name string `mapstructure:"name"`
 	}
 	Counters struct {
-		WaterC []string `yaml:"water-c"`
-		WaterH []string `yaml:"water-h"`
+		WaterC []string `mapstructure:"water-c"`
+		WaterH []string `mapstructure:"water-h"`
 	}
 }
 
@@ -129,4 +129,6 @@ func configPrintSummary() {
 	logConfigItem("ClickHouse.Port", config.ClickHouse.Port)
 	logConfigItem("ClickHouse.User", config.ClickHouse.User)
 	logConfigItem("ClickHouse.Name", config.ClickHouse.Name)
+	logConfigItem("Counters.WaterC", config.Counters.WaterC)
+	logConfigItem("Counters.WaterH", config.Counters.WaterH)
 }
