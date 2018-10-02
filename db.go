@@ -122,7 +122,7 @@ func dbSaveClicks() {
 	}
 
 	for counterID, count := range rows {
-		log.Warnf("[%d] %1d => %d", time.Unix(timestamp, 0).Format("15:04:05"), counterID, count)
+		log.Warnf("[%s] %1d => %d", time.Unix(timestamp-1, 0).Format("15:04:05"), counterID, count)
 	}
 }
 

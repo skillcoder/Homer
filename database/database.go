@@ -138,36 +138,38 @@ func (c *DbT) PopMetricsFrom(from, to int64) (rows map[string][]float64, isHaveO
 func (c *DbT) PopClicksFrom(from, to int64) (rows map[uint8]uint16, isHaveOlder bool) {
 	rows = make(map[uint8]uint16)
 	for counterID, data := range c.clicks {
-		rows[counterID] = 0
-		older := make([]int64, 0)
-		for _, t := range data {
-			if t < to {
-				c.clicks[counterID] = c.clicks[counterID][1:] // delete first element
-				if t >= from {
-					rows[counterID]++
+		if len(data) > 0 {
+			rows[counterID] = 0
+			older := make([]int64, 0)
+			for _, t := range data {
+				if t < to {
+					c.clicks[counterID] = c.clicks[counterID][1:] // delete first element
+					if t >= from {
+						rows[counterID]++
+					} else {
+						isHaveOlder = true
+						older = append(older, t)
+						// FIXME remove it
+						fmt.Printf("older click [%d] %d", counterID, t)
+					}
 				} else {
-					isHaveOlder = true
-					older = append(older, t)
-					// FIXME remove it
-					fmt.Printf("older click [%d] %d", counterID, t)
+					break
 				}
-			} else {
-				break
-			}
-		}
-
-		if len(older) > 0 {
-			newerCount := len(c.clicks[counterID])
-			newer := make([]int64, newerCount)
-			if newerCount > 0 {
-				copy(newer, c.clicks[counterID])
 			}
 
-			c.clicks[counterID] = make([]int64, newerCount+len(older))
-			copy(c.clicks[counterID], older)
+			if len(older) > 0 {
+				newerCount := len(c.clicks[counterID])
+				newer := make([]int64, newerCount)
+				if newerCount > 0 {
+					copy(newer, c.clicks[counterID])
+				}
 
-			if newerCount > 0 {
-				copy(c.clicks[counterID][len(older)-1:], newer)
+				c.clicks[counterID] = make([]int64, newerCount+len(older))
+				copy(c.clicks[counterID], older)
+
+				if newerCount > 0 {
+					copy(c.clicks[counterID][len(older)-1:], newer)
+				}
 			}
 		}
 	}
