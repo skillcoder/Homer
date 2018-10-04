@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/goiiot/libmqtt"
 )
@@ -69,10 +70,11 @@ func mqttConnect(host string, port uint16, name, user, pass string) {
 		libmqtt.WithClientID(name),
 		libmqtt.WithDialTimeout(2), // Connection timeout
 		libmqtt.WithIdentity(user, pass),
-		//    libmqtt.WithKeepalive(30, 1),
+		libmqtt.WithKeepalive(30, 1),
 		libmqtt.WithLog(libmqtt.Info), // Silent/Verbose/Debug/Info/Warning/Error
 		libmqtt.WithRouter(libmqtt.NewRegexRouter()),
 		//libmqtt.WithPersist
+		libmqtt.WithBackoffStrategy(1*time.Second, 30*time.Second, 1.5),
 	)
 	if err != nil {
 		// handle client creation error
@@ -93,7 +95,8 @@ func mqttConnect(host string, port uint16, name, user, pass string) {
 	// connect to server
 	mqttClient.Connect(func(server string, code byte, err error) {
 		if err != nil {
-			log.Panic("mqttConnect ERR:", err)
+			log.Error("mqttConnect ERR:", err)
+			return
 		}
 
 		if code != libmqtt.CodeSuccess {

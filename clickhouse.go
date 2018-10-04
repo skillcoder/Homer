@@ -6,8 +6,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/kshvakov/clickhouse"
 )
@@ -95,19 +97,36 @@ func clickhouseConnect() {
 	clickhouseInitMetrics()
 }
 
-func clickhousePing() {
+func clickhousePing() bool {
 	if err := clickhouseDb.Ping(); err != nil {
 		if exception, ok := err.(*clickhouse.Exception); ok {
-			fmt.Printf("[%d] %s \n%s\n", exception.Code, exception.Message, exception.StackTrace)
+			log.Errorf("clickhousePing ERR: [%d] %s \n%s\n", exception.Code, exception.Message, exception.StackTrace)
 		} else {
-			fmt.Println(err)
+			log.Error("clickhousePing ERR:", err)
 		}
-		return
+
+		return false
+	}
+
+	return true
+}
+
+func clickhouseWaitConnection() {
+	var delay = 500
+	var factor = 1.5
+	var maxsleep = 10000
+	for !clickhousePing() {
+		// TODO save rquest for feature send it to database
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+		delay = int(math.Ceil(float64(delay) * factor))
+		if delay > maxsleep {
+			delay = maxsleep
+		}
 	}
 }
 
 func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
-	clickhousePing()
+	clickhouseWaitConnection()
 
 	// result
 	sqlFields := make([]string, 0, clickhouseMetricCount+1)
@@ -122,9 +141,11 @@ func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
 				_, err := clickhouseDb.Exec("ALTER TABLE `metrics` ADD COLUMN `$1` Nullable(Float32)", key)
 				if err != nil {
 					log.Errorf("Cant ADD COLUMN [%s] to database: %v", key, err)
+					// TODO save request for feature send it to database (and return)
 					continue
 				}
 
+				// TODO  check error inside clickhouseAddMetric
 				clickhouseAddMetric(key, "Nullable(Float32)")
 			} else {
 				log.Warnf("Invalid COLUMN name [%s]", key)
@@ -156,13 +177,19 @@ func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
 		       %s""",timestamp, year, month, day, weekday, now.Hour(), now.Minute(), strings.Join(sql, ", ")))
 		*/
 
-		var (
-			strSQL = "INSERT INTO `metrics`" +
-				" (`ctime`, " + strings.Join(sqlFields, ", ") + ")" +
-				" VALUES (?," + strings.Join(sqlNames, ",") + ")"
-			tx, _   = clickhouseDb.Begin()
-			stmt, _ = tx.Prepare(strSQL) // nolint: safesql
-		)
+		strSQL := "INSERT INTO `metrics`" +
+			" (`ctime`, " + strings.Join(sqlFields, ", ") + ")" +
+			" VALUES (?," + strings.Join(sqlNames, ",") + ")"
+		tx, err := clickhouseDb.Begin()
+		if err != nil {
+			log.Errorf("Cant Begin clickhouse tx: %v", err)
+		}
+
+		stmt, err := tx.Prepare(strSQL) // nolint: safesql
+		if err != nil {
+			log.Errorf("Cant Prepare clickhouse stmt: %v", err)
+		}
+
 		//defer tx.Rollback()
 		defer func() {
 			err := stmt.Close()
