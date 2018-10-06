@@ -75,6 +75,7 @@ func mqttConnect(host string, port uint16, name, user, pass string) {
 		libmqtt.WithRouter(libmqtt.NewRegexRouter()),
 		//libmqtt.WithPersist
 		libmqtt.WithBackoffStrategy(1*time.Second, 30*time.Second, 1.5),
+		libmqtt.WithAutoReconnect(true),
 	)
 	if err != nil {
 		// handle client creation error
