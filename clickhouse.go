@@ -20,6 +20,8 @@ var clickhouseMetrics = make(map[string]struct{})
 var clickhouseDb *sql.DB
 var clickhouseCtx = context.Background()
 
+const clickhouseMetricType = "Nullable(Float32)"
+
 func clickhouseCheckFieldName(name string) (result bool) {
 	re := regexp.MustCompile(`^[^a-zA-Z0-9:\-_]+$`)
 	result = re.MatchString(name)
@@ -27,7 +29,7 @@ func clickhouseCheckFieldName(name string) (result bool) {
 }
 
 func clickhouseAddMetric(fieldName, fieldType string) {
-	if fieldType == "Nullable(Float32)" {
+	if fieldType == clickhouseMetricType {
 		clickhouseMetrics[fieldName] = struct{}{}
 		clickhouseMetricCount = len(clickhouseMetrics)
 		log.Info("Metric init ", fieldName)
@@ -125,6 +127,24 @@ func clickhouseWaitConnection() {
 	}
 }
 
+func clickhouseCreateMetric(name string) (ok bool) {
+	if ok := clickhouseCheckFieldName(name); ok {
+		_, err := clickhouseDb.Exec("ALTER TABLE `metrics` ADD COLUMN `$1` "+clickhouseMetricType, name)
+		if err != nil {
+			log.Errorf("Cant ADD COLUMN [%s] to database: %v", name, err)
+			return false
+		}
+
+		// TODO  check error inside clickhouseAddMetric
+		clickhouseAddMetric(name, clickhouseMetricType)
+	} else {
+		log.Warnf("Invalid COLUMN name [%s]", name)
+		return false
+	}
+
+	return true
+}
+
 func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
 	clickhouseWaitConnection()
 
@@ -137,18 +157,8 @@ func clickhouseMetricInsert(timestamp int64, row map[string]float64) {
 		// check key name column exist in our ckickhouse DDL
 		if _, ok := clickhouseMetrics[key]; !ok {
 			// if not exist - create it by ALTER TABLE values ADD key float8
-			if ok := clickhouseCheckFieldName(key); ok {
-				_, err := clickhouseDb.Exec("ALTER TABLE `metrics` ADD COLUMN `$1` Nullable(Float32)", key)
-				if err != nil {
-					log.Errorf("Cant ADD COLUMN [%s] to database: %v", key, err)
-					// TODO save request for feature send it to database (and return)
-					continue
-				}
-
-				// TODO  check error inside clickhouseAddMetric
-				clickhouseAddMetric(key, "Nullable(Float32)")
-			} else {
-				log.Warnf("Invalid COLUMN name [%s]", key)
+			if ok := clickhouseCreateMetric(key); !ok {
+				// TODO save request for feature send it to database (and return)
 				continue
 			}
 		}

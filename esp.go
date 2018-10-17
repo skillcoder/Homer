@@ -133,7 +133,7 @@ func espMessageHandler(topic string, payload []byte) {
 			log.Debugf("Debug")
 
 		default:
-			log.Warnf("Unknown topic Theme (%s) [%u] %s %s %s %u,"+
+			log.Warnf("Unknown topic Theme (%s) [%d] %s %s %s,"+
 				" we ignore it (but devs must fix this by adding esp handler for it)",
 				espTheme, timestamp, espRoom, espTheme, payloadStr)
 		}
